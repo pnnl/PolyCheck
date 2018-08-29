@@ -20,9 +20,6 @@ Prerequisites
 
 - Barvinok (will automatically install remaining prerequisites: pet, isl, polylib):
     ```
-    [OPTIONAL]: git clone git://repo.or.cz/barvinok.git
-    [OPTIONAL]: cd barvinok && ./get_submodules.sh
-
     wget http://barvinok.gforge.inria.fr/barvinok-0.41.tar.gz
     tar xf barvinok-0.41.tar.gz
     cd barvinok-0.41
