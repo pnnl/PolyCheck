@@ -3,9 +3,10 @@ Prerequisites
 --------------
 
 - LLVM/clang >= 5.0 (http://clang.llvm.org/get_started.html)
-    - MACOSX: brew install --with-toolchain llvm
+    - On MACOSX: brew install llvm
 
 - GNU GMP from: https://gmplib.org
+    - On MACOSX: brew install libgmp
 
 - NTL: A Library for doing Number Theory
     ```
