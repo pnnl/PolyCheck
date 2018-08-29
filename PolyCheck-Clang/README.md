@@ -24,7 +24,6 @@ Prerequisites
     tar xf barvinok-0.41.tar.gz
     cd barvinok-0.41
     
-    ./autogen.sh
     export BARVINOK_INSTALL=/opt/libraries/barvinok
     ./configure --prefix=$BARVINOK_INSTALL NTL_GMP_LIP=on 
     --with-gmp-prefix=/opt/libraries/gmp --with-ntl-prefix=/opt/libraries/ntl
