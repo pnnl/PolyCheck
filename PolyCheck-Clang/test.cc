@@ -259,6 +259,11 @@ isl_ctx* context(isl_union_pw_qpolynomial* obj) {
 }
 
 template<>
+isl_ctx* context(isl_pw_qpolynomial* obj) {
+    return isl_pw_qpolynomial_get_ctx(obj);
+}
+
+template<>
 isl_ctx* context(isl_schedule* obj) {
     return isl_schedule_get_ctx(obj);
 }
@@ -321,6 +326,11 @@ isl_printer* to_printer(isl_printer* printer, isl_qpolynomial* obj) {
 template<>
 isl_printer* to_printer(isl_printer* printer, isl_union_pw_qpolynomial* obj) {
     return isl_printer_print_union_pw_qpolynomial(printer, obj);
+}
+
+template<>
+isl_printer* to_printer(isl_printer* printer, isl_pw_qpolynomial* obj) {
+    return isl_printer_print_pw_qpolynomial(printer, obj);
 }
 
 template<>
@@ -1465,6 +1475,15 @@ int print_expr(__isl_keep pet_expr *expr, void *user) {
     return 0;
 }
 
+isl_stat print_pw_qpoly(__isl_take isl_pw_qpolynomial *pwqp, void *user) {
+    assert(pwqp);
+    assert(user);
+    std::string& str = *(std::string*)user;
+    std::cout<<"pwqp in c:---\n"<<islw::to_c_string(pwqp)<<"\n---\n";
+    str += islw::to_c_string(pwqp);
+    return isl_stat_ok;
+}
+
 class Statement {
     public:
     Statement() : stmt_id_{-1}, domain_{nullptr}, write_ref_{nullptr} {}
@@ -1481,6 +1500,10 @@ class Statement {
         read_ref_macro_names_ = stmt.read_ref_macro_names_;
         read_ref_macro_args_ = stmt.read_ref_macro_args_;
         read_ref_macro_exprs_ = stmt.read_ref_macro_exprs_;
+        array_sizes_ = stmt.array_sizes_;
+        read_array_names_ = stmt.read_array_names_;
+        write_array_name_ = stmt.write_array_name_;
+        write_array_size_ = stmt.write_array_size_;
     }
 
     Statement& operator = (Statement&& stmt){
@@ -1550,8 +1573,8 @@ class Statement {
             std::cerr<<"args[i]="<<read_ref_macro_args_[i]<<"\n";
             std::cerr<<"exprs[i]="<<read_ref_macro_exprs_[i]<<"\n";
             ret += "#define " + read_ref_macro_names_[i] +
-                   read_ref_macro_args_[i] + "\t"+
-                   read_ref_macro_exprs_[i] + "\n";
+                   read_ref_macro_args_[i] + "\t("+
+                   read_ref_macro_exprs_[i] + ")\n";
         std::cerr<<"DEFS=\n"<<ret<<"\n";
         }
         std::cerr<<"DEFS=\n"<<ret<<"\n";
@@ -1568,6 +1591,55 @@ class Statement {
         return ret;
     }
 
+    std::string inline_checks() const {
+        std::string str   = "{\n";
+        std::string sname = statement_name();
+        assert(read_refs_.size() == array_sizes_.size());
+        assert(read_refs_.size() == read_array_names_.size());
+        if(write_ref_) {
+            for(size_t j = 0; j < write_array_size_; j++) {
+                str += "int " + sname + "__w__" +
+                       std::to_string(j) + " = " + "/*to be filled by ajay*/" +
+                       ";\n";
+            }
+        }
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            for(size_t j=0; j<array_sizes_[i]; j++) {
+                str += "int " + sname + "__" + std::to_string(i) + "__" +
+                       std::to_string(j) + " = " + "/*to be filled by ajay*/"+";\n";
+            }
+        }
+        str += "\n";
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            str += "_diff |= " + sname + "__" + std::to_string(i) + "(...)" +
+                   "^" + "(int)(" + read_array_names_[i];
+            if(array_sizes_[i] != 0) {
+                str += "[" + sname + "__" + std::to_string(i) + "__" +
+                       std::to_string(0);
+            }
+            for(size_t j = 1; j < array_sizes_[i]; j++) {
+                str += ", " + sname + "__" + std::to_string(i) + "__" +
+                       std::to_string(j);
+            }
+            if(array_sizes_[i] != 0) { str += "]"; }
+            str += +");\n";
+        }
+        str += "\n";
+        if(write_ref_ != nullptr) {
+            str += write_array_name_;
+            if(write_array_size_ != 0) {
+                str += "[" + sname + "__w__" + std::to_string(0);
+            }
+            for(size_t j = 1; j < write_array_size_; j++) {
+                str += ", " + sname + "__w__" + std::to_string(j);
+            }
+            if(write_array_size_ != 0) { str += "]"; }
+            str += " += 1s;\n";
+        }
+        str += "\n}\n";
+        return str;
+    }
+
     private:
     void gather_references(pet_expr* expr) {
         if(pet_expr_get_type(expr) == pet_expr_access) {
@@ -1577,6 +1649,32 @@ class Statement {
                 // std::cerr<<"MAY READ=\n"<<islw::to_string(may_read)<<"\n";
                 read_refs_.push_back(isl_map_intersect_domain(
                   may_read, islw::copy(domain_)));
+                isl_id* id = pet_expr_access_get_id(expr);
+                read_array_names_.push_back(islw::to_string(id));
+                islw::destruct(id);
+                  #if 1
+                // std::cout << "&&&narg"
+                //           << islw::to_string(isl_set_from_union_set(
+                //                isl_union_map_range(
+                //                  pet_expr_access_get_may_read(expr))))
+                //           << "\n";
+                // std::cout << "&&&narg"
+                //           << isl_set_dim(isl_set_from_union_set(
+                //                isl_union_map_range(
+                //                  pet_expr_access_get_may_read(expr))),
+                //                isl_dim_set)
+                //           << "\n";
+                // std::cout<<"ID----:"<<islw::to_string(pet_expr_access_get_ref_id(expr))<<"\n";
+                // std::cout<<"&&&&&expr narg="<<pet_expr_get_n_arg(expr)<<"\n";
+                //                           << isl_set_dim(isl_set_from_union_set(
+                array_sizes_.push_back(isl_set_dim(isl_set_from_union_set(
+                  isl_union_map_range(pet_expr_access_get_may_read(expr))),
+                  isl_dim_set));
+                std::cout<<"&&&& DIM "<<read_array_names_.back()<<" = "<<array_sizes_.back()<<"\n";
+                // array_sizes_.push_back(pet_expr_get_n_arg(expr));
+                #else
+                array_sizes_.push_back(1);
+                #endif
                 // std::cerr<<"READS=\n"<<islw::to_string(read_refs_.back())<<"\n";
                 // read_ref_cards_.push_back(
                 //   isl_union_map_card(islw::copy(read_refs_.back())));
@@ -1587,6 +1685,12 @@ class Statement {
                   isl_map_from_union_map(pet_expr_access_get_may_write(expr));
                 write_ref_ = isl_map_intersect_domain(
                   may_write, islw::copy(domain_));
+                isl_id* id = pet_expr_access_get_id(expr);
+                write_array_name_ = islw::to_string(id);
+                islw::destruct(id);
+                write_array_size_ = isl_set_dim(isl_set_from_union_set(
+                  isl_union_map_range(pet_expr_access_get_may_write(expr))),
+                  isl_dim_set);
 
                 // const char* writeArray =
                 //   isl_map_get_tuple_name(write_ref_, isl_dim_out);
@@ -1614,17 +1718,24 @@ class Statement {
         isl_union_set* T = isl_union_map_range(isl_union_map_intersect_domain(
           islw::copy(S), isl_union_map_domain(islw::copy(sinstances))));
         isl_union_map* LT =
-          isl_union_map_from_map(isl_map_lex_lt(isl_union_set_get_space(T)));
+        //   isl_union_map_from_map(isl_map_lex_lt(isl_union_set_get_space(T)));
+        isl_union_set_lex_lt_union_set(islw::copy(T), islw::copy(T));
         isl_union_map* TWinv =
           isl_union_map_reverse(islw::umap_compose(Sinv, W));
 
         for(size_t i=0; i<read_refs_.size(); i++) {
-            isl_union_map* T_to_prevW =isl_union_map_intersect(islw::copy(LT),islw::umap_compose(
-                   Sinv, isl_union_map_from_map(islw::copy(read_refs_[i])), TWinv));
+            isl_union_map* T_to_prevW = isl_union_map_intersect(
+              islw::copy(LT),
+              islw::umap_compose(
+                Sinv, isl_union_map_from_map(islw::copy(read_refs_[i])),
+                TWinv));
             isl_union_map* S_to_prevW = islw::umap_compose(S, T_to_prevW);
             read_ref_cards_.push_back(isl_union_map_card(islw::copy(S_to_prevW)));
             std::cerr << "STMT " << stmt_id_ << " READ " << i<<"\n";
             std::cerr<<"read_refs:\n"<<islw::to_string(read_refs_[i])<<"\n";
+            std::cerr<<"LT:\n"<<islw::to_string(LT)<<"\n";
+            std::cerr<<"Space(T): "<<islw::to_string(isl_union_set_get_space(T))<<"\n";
+            std::cerr<<"T:\n"<<islw::to_string(T)<<"\n";
             std::cerr<<"TWinv:\n"<<islw::to_string(TWinv)<<"\n";
             std::cerr<<"Sinv:\n"<<islw::to_string(Sinv)<<"\n";
             std::cerr<<"T_to_prevW:\n"<<islw::to_string(T_to_prevW)<<"\n";
@@ -1633,6 +1744,15 @@ class Statement {
             std::cerr              << " CARD:\n-----\n";
 
             std::cout<<islw::to_string(read_ref_cards_.back())<<"\n------\n";
+
+            std::cout << "pw\n-------\n"
+                      << isl_pw_qpolynomial_to_str(isl_union_pw_qpolynomial_extract_pw_qpolynomial(
+                          read_ref_cards_.back(),
+                           isl_union_pw_qpolynomial_get_space(
+                             read_ref_cards_.back())))
+                      << "\n----\n";
+            // std::cout<<islw::to_c_string(isl_union_pw_qpolynomial_to_polynomial()
+            // read_ref_cards_.back())<<"\n------\n";
             islw::destruct(T_to_prevW, S_to_prevW);
         }
         islw::destruct(Sinv, sinstances, T, LT, TWinv);
@@ -1667,23 +1787,32 @@ class Statement {
 
     void construct_read_ref_macro_exprs() {
         for(size_t i=0; i<read_ref_cards_.size(); i++) {
-            read_ref_macro_exprs_.push_back(islw::to_string(read_ref_cards_[i]));
+            // read_ref_macro_exprs_.push_back(islw::to_string(read_ref_cards_[i]));
+            std::string str;
+            isl_union_pw_qpolynomial_foreach_pw_qpolynomial(
+              read_ref_cards_[i], print_pw_qpoly, &str);
+            if(str.empty()) { str = std::to_string(0); }
+            read_ref_macro_exprs_.push_back(str);
         }        
     }
 
-    void construct_inline_checks() {
-
+    std::string statement_name() const {
+        return std::string{"S_"} + std::to_string(stmt_id_);
     }
 
     int stmt_id_;
     isl_set* domain_;
     std::vector<isl_map*> read_refs_;
+    std::vector<std::string> read_array_names_;
+    std::vector<int> array_sizes_; //dimensionality of the i-th read array reference 
     std::vector<isl_union_pw_qpolynomial*> read_ref_cards_;
     std::vector<std::string> read_ref_macro_names_;
     std::vector<std::string> read_ref_macro_args_;
     std::vector<std::string> read_ref_macro_exprs_;
-    std::vector<std::string> inline_checks_;
+    //std::vector<std::string> inline_checks_;
     isl_map* write_ref_;
+    std::string write_array_name_;
+    int write_array_size_;
     // isl_union_map* sched_;
 };
 
@@ -1777,6 +1906,7 @@ int main(int argc, char* argv[]) {
     //  std::cout<<"RW\n-----\n"<<islw::to_string(RW)<<"\n----\n";
 
     std::string defs, undefs;
+    std::vector<std::string> inline_checks;
      {
          std::vector<Statement> stmts;
          for(int i = 0; i < scop->n_stmt; i++) {
@@ -1785,6 +1915,7 @@ int main(int argc, char* argv[]) {
          for(const auto& stmt: stmts) {
              defs += stmt.read_ref_macro_defs();
              undefs += stmt.read_ref_macro_undefs();
+             inline_checks.push_back(stmt.inline_checks());
          }
      }
 
@@ -1792,6 +1923,11 @@ int main(int argc, char* argv[]) {
      const std::string epilogue = undefs + "\n" + epilog(W);
      std::cout<<"Prolog\n------\n"<< prologue <<"\n----------\n";
      std::cout<<"Epilog\n------\n"<< epilogue <<"\n----------\n";
+     std::cout<<"Inline checks\n------\n";
+    for(size_t i=0; i<inline_checks.size(); i++) {
+        std::cout<<"  Statement "<<i<<"\n  ---\n"<<inline_checks[i]<<"\n";
+    }
+    std::cout<<"-------\n";
 
      ParseScop(target, prologue, epilogue, GetOutputFileName(filename));
 
