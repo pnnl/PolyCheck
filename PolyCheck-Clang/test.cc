@@ -21,6 +21,7 @@
 #include <pet.h>
 #include <barvinok/isl.h>
 
+#include "testInsert.hpp"
 //using namespace polycheck;
 
 //const char* smap = "[ni, nj] -> { C[i0, i1] : i0 >= 0 and i0 < ni and i1 >= 0 and i1 < nj and i1 <= 1023 }";
@@ -1697,6 +1698,9 @@ int main(int argc, char* argv[]) {
 
     assert(argc == 2);
     std::string filename{argv[1]};
+    std::string target{argv[2]};
+
+     
 
     struct pet_options* options = pet_options_new_with_defaults();
     isl_ctx* ctx = isl_ctx_alloc_with_options(&pet_options_args, options);
@@ -1783,8 +1787,13 @@ int main(int argc, char* argv[]) {
              undefs += stmt.read_ref_macro_undefs();
          }
      }
-    std::cout<<"Prolog\n------\n"<<prolog(R, W)<<"\n"<<defs<<"\n----------\n";
-     std::cout<<"Epilog\n------\n"<<undefs<<"\n"<<epilog(W)<<"\n----------\n";
+
+     const std::string prologue = prolog(R, W) + "\n" + defs;
+     const std::string epilogue = undefs + "\n" + epilog(W);
+     std::cout<<"Prolog\n------\n"<< prologue <<"\n----------\n";
+     std::cout<<"Epilog\n------\n"<< epilogue <<"\n----------\n";
+
+     ParseScop(target, prologue, epilogue, GetOutputFileName(filename));
 
      pet_scop_free(scop);
      isl_schedule_free(isched);
