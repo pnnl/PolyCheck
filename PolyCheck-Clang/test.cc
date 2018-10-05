@@ -208,6 +208,11 @@ isl_ctx* context(isl_union_map* umap) {
 }
 
 template<>
+isl_ctx* context(isl_map* map) {
+    return isl_map_get_ctx(map);
+}
+
+template<>
 isl_ctx* context(isl_ast_node* node) {
     return isl_ast_node_get_ctx(node);
 }
@@ -223,6 +228,11 @@ isl_ctx* context(isl_set* iset) {
 }
 
 template<>
+isl_ctx* context(isl_union_set* uset) {
+    return isl_union_set_get_ctx(uset);
+}
+
+template<>
 isl_ctx* context(isl_qpolynomial* qp) {
     return isl_qpolynomial_get_ctx(qp);
 }
@@ -233,8 +243,23 @@ isl_ctx* context(isl_id* id) {
 }
 
 template<>
+isl_ctx* context(isl_space* obj) {
+    return isl_space_get_ctx(obj);
+}
+
+template<>
 isl_ctx* context(isl_multi_pw_aff* mpwa) {
     return isl_multi_pw_aff_get_ctx(mpwa);
+}
+
+template<>
+isl_ctx* context(isl_union_pw_qpolynomial* obj) {
+    return isl_union_pw_qpolynomial_get_ctx(obj);
+}
+
+template<>
+isl_ctx* context(isl_schedule* obj) {
+    return isl_schedule_get_ctx(obj);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -248,13 +273,33 @@ isl_printer* to_printer(isl_printer* printer, isl_union_map* obj) {
 }
 
 template<>
+isl_printer* to_printer(isl_printer* printer, isl_map* obj) {
+    return isl_printer_print_map(printer, obj);
+}
+
+template<>
+isl_printer* to_printer(isl_printer* printer, isl_schedule* obj) {
+    return isl_printer_print_schedule(printer, obj);
+}
+
+template<>
 isl_printer* to_printer(isl_printer* printer, isl_set* obj) {
     return isl_printer_print_set(printer, obj);
 }
 
 template<>
+isl_printer* to_printer(isl_printer* printer, isl_union_set* obj) {
+    return isl_printer_print_union_set(printer, obj);
+}
+
+template<>
 isl_printer* to_printer(isl_printer* printer, isl_point* point) {
     return isl_printer_print_point(printer, point);
+}
+
+template<>
+isl_printer* to_printer(isl_printer* printer, isl_space* obj) {
+    return isl_printer_print_space(printer, obj);
 }
 
 template<>
@@ -270,6 +315,11 @@ isl_printer* to_printer(isl_printer* printer, isl_ast_node* node) {
 template<>
 isl_printer* to_printer(isl_printer* printer, isl_qpolynomial* obj) {
     return isl_printer_print_qpolynomial(printer, obj);
+}
+
+template<>
+isl_printer* to_printer(isl_printer* printer, isl_union_pw_qpolynomial* obj) {
+    return isl_printer_print_union_pw_qpolynomial(printer, obj);
 }
 
 template<>
@@ -307,6 +357,13 @@ template<>
 void destruct(isl_union_map* umap) {
     if(umap) {
         isl_union_map_free(umap);
+    }
+}
+
+template<>
+void destruct(isl_map* map) {
+    if(map) {
+        isl_map_free(map);
     }
 }
 
@@ -366,6 +423,13 @@ void destruct(isl_qpolynomial* qp) {
     }
 }
 
+template<>
+void destruct(isl_schedule* sc) {
+    if(sc) {
+        isl_schedule_free(sc);
+    }
+}
+
 template<typename T, typename... Args>
 void destruct(T* obj, Args... args) {
     islw::destruct(obj);
@@ -380,6 +444,21 @@ T* copy(T* obj);
 template<>
 isl_union_map* copy(isl_union_map* umap) {
     return umap ? isl_union_map_copy(umap) : nullptr;
+}
+
+template<>
+isl_map* copy(isl_map* map) {
+    return map ? isl_map_copy(map) : nullptr;
+}
+
+template<>
+isl_space* copy(isl_space* space) {
+    return space ? isl_space_copy(space) : nullptr;
+}
+
+template<>
+isl_union_pw_qpolynomial* copy(isl_union_pw_qpolynomial* obj) {
+    return obj ? isl_union_pw_qpolynomial_copy(obj) : nullptr;
 }
 
 template<>
@@ -1262,6 +1341,19 @@ std::vector<std::string> iter_names(isl_set* iset) {
     return ret;
 }
 
+std::vector<std::string> iter_names(isl_space* space) {
+    std::vector<std::string> ret;
+    std::cerr<<"SPACE ndim="<<isl_space_dim(space, isl_dim_set)<<"\n";
+    for(size_t j = 0; j < isl_space_dim(space, isl_dim_set); j++) {
+        const char* iname = isl_space_get_dim_name(space, isl_dim_set, j);
+        if(iname != nullptr)
+            ret.push_back(std::string(iname));
+        else
+            ret.push_back(std::string("c" + std::to_string(j)));
+    }
+    return ret;
+}
+
 template<typename T>
 std::string join(const std::vector<T>& vec, const std::string& sep) {
     using std::to_string;
@@ -1372,9 +1464,227 @@ int print_expr(__isl_keep pet_expr *expr, void *user) {
     return 0;
 }
 
-isl_stat extract_accesses() {
-    
-}
+class Statement {
+    public:
+    Statement() : stmt_id_{-1}, domain_{nullptr}, write_ref_{nullptr} {}
+
+    Statement(const Statement& stmt) : stmt_id_{stmt.stmt_id_} {
+        domain_    = islw::copy(stmt.domain_);
+        write_ref_ = islw::copy(stmt.write_ref_);
+        for(const auto& rr : stmt.read_refs_) {
+            read_refs_.push_back(islw::copy(rr));
+        }
+        for(const auto& rrc : stmt.read_ref_cards_) {
+            read_ref_cards_.push_back(islw::copy(rrc));
+        }
+        read_ref_macro_names_ = stmt.read_ref_macro_names_;
+        read_ref_macro_args_ = stmt.read_ref_macro_args_;
+        read_ref_macro_exprs_ = stmt.read_ref_macro_exprs_;
+    }
+
+    Statement& operator = (Statement&& stmt){
+        std::swap(*this, stmt);
+        return *this;
+    }
+
+    Statement(int stmt_id, pet_scop* pscop) : stmt_id_{stmt_id} {
+        isl_union_map* R     = pet_scop_get_may_reads(pscop);
+        isl_union_map* W     = pet_scop_get_may_writes(pscop);
+        isl_schedule* isched = pet_scop_get_schedule(pscop);
+        isl_union_map* S     = isl_schedule_get_map(isched);
+
+        domain_ = islw::copy(pscop->stmts[stmt_id_]->domain);
+
+        // std::cout << "DOMAIN=\n"<<islw::to_string(domain_) << "\n";
+
+        // std::cerr<<__FUNCTION__<<"\n R-----\n"<<islw::to_string(R)<<"\n-----\n";
+        // std::cerr<<__FUNCTION__<<"\n W-----\n"<<islw::to_string(W)<<"\n-----\n";
+        // std::cerr<<__FUNCTION__<<"\n S-----\n"<<islw::to_string(S)<<"\n-----\n";
+        // std::cerr<<__FUNCTION__<<"\n isched-----\n"<<islw::to_string(isched)<<"\n-----\n";
+        gather_references(pet_tree_expr_get_expr(pscop->stmts[stmt_id]->body));
+#if 0
+        isl_union_set* T = isl_union_map_range(islw::copy(S));
+        isl_union_map* LT =
+          isl_union_map_from_map(isl_map_lex_lt(isl_union_set_get_space(T)));
+        isl_union_map* TW =
+          islw::umap_compose_left(isl_union_map_reverse(islw::copy(S)), W);
+
+        pet_stmt* pstmt = pscop->stmts[stmt_id];
+        domain_ = isl_set_coalesce(
+          isl_set_remove_redundancies(islw::copy(pstmt->domain)));
+
+        // sched_ =
+        //   isl_union_map_intersect_domain(islw::copy(S), islw::copy(domain_));
+
+#endif
+        std::cout<<"#read refs="<<read_refs_.size()<<"\n";
+        if(write_ref_) {
+            std::cout<<"WRITE REF FOUND\n";
+        }
+        gather_card(S, R,W);
+        assert(read_refs_.size() == read_ref_cards_.size());
+        construct_read_ref_macros();
+        islw::destruct(R, W, isched, S);
+    }
+
+    ~Statement() {
+        islw::destruct(write_ref_);
+        islw::destruct(domain_);
+        for(auto rr: read_refs_) {
+            islw::destruct(rr);
+        }
+        for(auto rrc: read_ref_cards_) {
+            islw::destruct(rrc);
+        }
+    }
+
+    std::string read_ref_macro_defs() const {
+        std::string ret;
+        assert(read_refs_.size() == read_ref_macro_names_.size());
+        assert(read_ref_macro_names_.size() == read_ref_macro_args_.size());
+        assert(read_ref_macro_names_.size() == read_ref_macro_exprs_.size());
+        std::cerr<<"NUM DEF MACROS="<<read_ref_macro_names_.size()<<"\n";
+        for(size_t i = 0; i < read_ref_macro_names_.size(); i++) {
+            std::cerr<<"name[i]="<<read_ref_macro_names_[i]<<"\n";
+            std::cerr<<"args[i]="<<read_ref_macro_args_[i]<<"\n";
+            std::cerr<<"exprs[i]="<<read_ref_macro_exprs_[i]<<"\n";
+            ret += "#define " + read_ref_macro_names_[i] +
+                   read_ref_macro_args_[i] + "\t"+
+                   read_ref_macro_exprs_[i] + "\n";
+        std::cerr<<"DEFS=\n"<<ret<<"\n";
+        }
+        std::cerr<<"DEFS=\n"<<ret<<"\n";
+        return ret;
+    }
+
+    std::string read_ref_macro_undefs() const {
+        std::string ret;
+        assert(read_refs_.size() == read_ref_macro_names_.size());
+        for(size_t i = 0; i < read_ref_macro_names_.size(); i++) {
+            ret += "#undef " + read_ref_macro_names_[i] + "\n";
+        }
+        std::cerr<<"UNDEFS=\n"<<ret<<"\n";
+        return ret;
+    }
+
+    private:
+    void gather_references(pet_expr* expr) {
+        if(pet_expr_get_type(expr) == pet_expr_access) {
+            if(pet_expr_access_is_read(expr)) {
+                isl_map* may_read =
+                  isl_map_from_union_map(pet_expr_access_get_may_read(expr));
+                // std::cerr<<"MAY READ=\n"<<islw::to_string(may_read)<<"\n";
+                read_refs_.push_back(isl_map_intersect_domain(
+                  may_read, islw::copy(domain_)));
+                // std::cerr<<"READS=\n"<<islw::to_string(read_refs_.back())<<"\n";
+                // read_ref_cards_.push_back(
+                //   isl_union_map_card(islw::copy(read_refs_.back())));
+            }
+
+            if(pet_expr_access_is_write(expr)) {
+                isl_map* may_write =
+                  isl_map_from_union_map(pet_expr_access_get_may_write(expr));
+                write_ref_ = isl_map_intersect_domain(
+                  may_write, islw::copy(domain_));
+
+                // const char* writeArray =
+                //   isl_map_get_tuple_name(write_ref_, isl_dim_out);
+                // statement->setWriteArrayName(string(writeArray));
+            }
+        }
+        for(int i = 0; i < pet_expr_get_n_arg(expr); i++) {
+            gather_references(pet_expr_get_arg(expr, i));
+        }
+        pet_expr_free(expr);
+    }
+
+    /**
+     * @brief 
+     * 
+     * read_cards_[i] = card S . (((S^-1) . read_refs_[i] .(TW^-1)) * LT )
+     * 
+     */
+    void gather_card(isl_union_map* S, isl_union_map* R, isl_union_map* W) {
+        //LT = T << T
+        //Sinv = S^-1
+        //TWinv = (Sinv . W)^-1
+        isl_union_map* Sinv = isl_union_map_reverse(islw::copy(S));
+        isl_union_map* sinstances = isl_union_map_union(islw::copy(R), islw::copy(W));
+        isl_union_set* T = isl_union_map_range(isl_union_map_intersect_domain(
+          islw::copy(S), isl_union_map_domain(islw::copy(sinstances))));
+        isl_union_map* LT =
+          isl_union_map_from_map(isl_map_lex_lt(isl_union_set_get_space(T)));
+        isl_union_map* TWinv =
+          isl_union_map_reverse(islw::umap_compose(Sinv, W));
+
+        for(size_t i=0; i<read_refs_.size(); i++) {
+            isl_union_map* T_to_prevW =isl_union_map_intersect(islw::copy(LT),islw::umap_compose(
+                   Sinv, isl_union_map_from_map(islw::copy(read_refs_[i])), TWinv));
+            isl_union_map* S_to_prevW = islw::umap_compose(S, T_to_prevW);
+            read_ref_cards_.push_back(isl_union_map_card(islw::copy(S_to_prevW)));
+            std::cerr << "STMT " << stmt_id_ << " READ " << i<<"\n";
+            std::cerr<<"read_refs:\n"<<islw::to_string(read_refs_[i])<<"\n";
+            std::cerr<<"TWinv:\n"<<islw::to_string(TWinv)<<"\n";
+            std::cerr<<"Sinv:\n"<<islw::to_string(Sinv)<<"\n";
+            std::cerr<<"T_to_prevW:\n"<<islw::to_string(T_to_prevW)<<"\n";
+            std::cerr<<"S_to_prevW:\n"<<islw::to_string(S_to_prevW)<<"\n";
+
+            std::cerr              << " CARD:\n-----\n";
+
+            std::cout<<islw::to_string(read_ref_cards_.back())<<"\n------\n";
+            islw::destruct(T_to_prevW, S_to_prevW);
+        }
+        islw::destruct(Sinv, sinstances, T, LT, TWinv);
+    }
+
+    void construct_read_ref_macros() {
+        for(size_t i=0; i<read_refs_.size(); i++) {
+            std::string str;
+            // std::cerr<<"STMT "<<stmt_id_<<" READ "<<i<<" SPACE:\n"
+            // <<islw::to_string(isl_map_get_space(read_refs_[i]))<<"\n---\n";
+            // // std::cerr<<"STMT "<<stmt_id_<<" READ "<<i<<" SPACE NAME:\n"
+            // // <<islw::to_string(isl_space_get_name(isl_map_get_space(read_refs_[i])))<<"\n---\n";
+            // std::cerr<<"STMT "<<stmt_id_<<" READ "<<i<<" SPACE TUPLE NAME:\n"
+            // <<isl_space_get_tuple_name(isl_map_get_space(read_refs_[i]), isl_dim_in)<<"\n---\n";
+
+            str = std::string{isl_space_get_tuple_name(isl_map_get_space(read_refs_[i]), isl_dim_in)}+
+            "__"+ std::to_string(i);
+            read_ref_macro_names_.push_back(str);
+
+            // std::cerr<<"DOMAIN="<<islw::to_string(isl_space_domain(islw::copy(isl_map_get_space(read_refs_[i]))))<<"\n";
+
+            std::string iname = join(iter_names(isl_space_domain(islw::copy(
+                                       isl_map_get_space(read_refs_[i])))),
+                                     ",");
+            read_ref_macro_args_.push_back("(" + iname + ")");
+            std::cerr << "RR MACRO= #define " << read_ref_macro_names_.back()
+                      << "     "<< read_ref_macro_args_.back() 
+                      <<"    "<<islw::to_string(read_ref_cards_[i])<<"\n";
+        }
+        construct_read_ref_macro_exprs();
+    }
+
+    void construct_read_ref_macro_exprs() {
+        for(size_t i=0; i<read_ref_cards_.size(); i++) {
+            read_ref_macro_exprs_.push_back(islw::to_string(read_ref_cards_[i]));
+        }        
+    }
+
+    void construct_inline_checks() {
+
+    }
+
+    int stmt_id_;
+    isl_set* domain_;
+    std::vector<isl_map*> read_refs_;
+    std::vector<isl_union_pw_qpolynomial*> read_ref_cards_;
+    std::vector<std::string> read_ref_macro_names_;
+    std::vector<std::string> read_ref_macro_args_;
+    std::vector<std::string> read_ref_macro_exprs_;
+    std::vector<std::string> inline_checks_;
+    isl_map* write_ref_;
+    // isl_union_map* sched_;
+};
 
 int main(int argc, char* argv[]) {
     // std::string writes = "[ni, nj] -> { S_0[i, j] -> C[o0, o1] : o0 = i and
@@ -1433,13 +1743,13 @@ int main(int argc, char* argv[]) {
 
      std::cout << "#statements=" << scop->n_stmt << "\n";
      for(int i = 0; i < scop->n_stmt; i++) {
-        std::cout<<"-----------\n";
-         std::cout << "Statement " << i << " nargs=" << scop->stmts[i]->n_arg
-                   << "\n";
-        pet_tree_dump(scop->stmts[i]->body);
-        std::cout<<"---\n";        
-        pet_tree_foreach_access_expr(scop->stmts[i]->body,
-            print_expr, nullptr);
+        //std::cout<<"-----------\n";
+         //std::cout << "Statement " << i << " nargs=" << scop->stmts[i]->n_arg
+                //    << "\n";
+        //pet_tree_dump(scop->stmts[i]->body);
+        //std::cout<<"---\n";        
+        // pet_tree_foreach_access_expr(scop->stmts[i]->body,
+        //     print_expr, nullptr);
         //  for(int j = 0; j < scop->stmts[i]->n_arg; j++) {
         //      pet_expr_dump(scop->stmts[i]->args[j]);
         //  }
@@ -1457,10 +1767,25 @@ int main(int argc, char* argv[]) {
          //     std::cout<<"Statements:"<<isl_printer_get_str(printer)<<"\n";
          //     islw::destruct(printer);
      }
-     isl_union_map* RW = isl_union_map_union(islw::copy(R), islw::copy(W));
-     std::map<std::string, isl_union_map*> dict;
-     isl_union_map_foreach_map(RW, extract_accesses, &dict);
-     std::cout<<"RW\n-----\n"<<islw::to_string(RW)<<"\n----\n";
+    //  isl_union_map* RW = isl_union_map_union(islw::copy(R), islw::copy(W));
+    //  std::map<std::string, isl_union_map*> dict;
+    //  isl_union_map_foreach_map(RW, extract_accesses, &dict);
+    //  std::cout<<"RW\n-----\n"<<islw::to_string(RW)<<"\n----\n";
+
+    std::string defs, undefs;
+     {
+         std::vector<Statement> stmts;
+         for(int i = 0; i < scop->n_stmt; i++) {
+             stmts.push_back(Statement{i, scop});
+         }
+         for(const auto& stmt: stmts) {
+             defs += stmt.read_ref_macro_defs();
+             undefs += stmt.read_ref_macro_undefs();
+         }
+     }
+    std::cout<<"Prolog\n------\n"<<prolog(R, W)<<"\n"<<defs<<"\n----------\n";
+     std::cout<<"Epilog\n------\n"<<undefs<<"\n"<<epilog(W)<<"\n----------\n";
+
      pet_scop_free(scop);
      isl_schedule_free(isched);
      islw::destruct(R, W, S, ctx);
