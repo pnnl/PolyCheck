@@ -1929,7 +1929,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout<<"-------\n";
 
-     ParseScop(target, prologue, epilogue, GetOutputFileName(filename));
+     ParseScop(target, inline_checks, prologue, epilogue, GetOutputFileName(filename));
 
      pet_scop_free(scop);
      isl_schedule_free(isched);

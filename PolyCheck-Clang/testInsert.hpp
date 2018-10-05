@@ -69,8 +69,8 @@ struct PdLoc {
 class MyASTVisitor : public RecursiveASTVisitor<MyASTVisitor>
 {
 public:
-  MyASTVisitor (Preprocessor &PP, Rewriter  &R, PdLoc &loc, string prologue, string epilogue)
-    : PP(PP), TheRewriter(R), loc(loc), FaultTolerantRegionStarted(false), Prologue(prologue), Epilogue(epilogue), m_inForLine(false)
+  MyASTVisitor (Preprocessor &PP, Rewriter  &R, PdLoc &loc, std::vector<string> checks, string prologue, string epilogue)
+    : PP(PP), TheRewriter(R), loc(loc), FaultTolerantRegionStarted(false), checks(checks), Prologue(prologue), Epilogue(epilogue), m_inForLine(false)
   {}
   
   bool TraverseForStmt(ForStmt *fs)// Traverse for stmt to make mark
@@ -500,6 +500,7 @@ private:
   PdLoc &loc;
   Preprocessor &PP;
   bool FaultTolerantRegionStarted;
+  std::vector<string> checks;
   string Prologue;
   string Epilogue;
   bool m_inForLine;
@@ -508,8 +509,8 @@ private:
 class MyASTConsumer : public ASTConsumer
 {
 public:
-  MyASTConsumer(Preprocessor &PP, Rewriter &R, PdLoc &l, string prologue, string epilogue) :
-      Visitor (PP, R, l, prologue, epilogue), loc(l), PP(PP), Prologue(prologue), Epilogue(epilogue)
+  MyASTConsumer(Preprocessor &PP, Rewriter &R, PdLoc &l, std::vector<string> checks, string prologue, string epilogue) :
+      Visitor (PP, R, l, checks, prologue, epilogue), loc(l), PP(PP), checks(checks), Prologue(prologue), Epilogue(epilogue)
   {
   }
 
@@ -537,7 +538,7 @@ private:
   MyASTVisitor Visitor;
   PdLoc &loc;
   Preprocessor &PP;
-  
+  std::vector<string> checks;
   string Prologue;
   string Epilogue;
 
@@ -623,7 +624,7 @@ void WriteToFile(string outputFileName, string output)
 }// void WriteToFile(string outputFileName, string output)
 
 // ParseScop: the main file 
-int ParseScop(string fileName, string prologue, string epilogue, string outputFileName)
+int ParseScop(string fileName, std::vector<string> &checks, string prologue, string epilogue, string outputFileName)
 {
 
   // CompilerInstance will hold the instance of the Clang compiler,
@@ -670,7 +671,7 @@ int ParseScop(string fileName, string prologue, string epilogue, string outputFi
 
   // Create an AST consumer instance which is going to get called by ParseAST
   //MyASTConsumer TheConsumer(PP, TheRewriter, loc, statements,returnValues.LiveDataCheckerCode);
-  MyASTConsumer TheConsumer(PP,TheRewriter,loc,prologue,epilogue);
+  MyASTConsumer TheConsumer(PP,TheRewriter,loc,checks, prologue,epilogue);
 
   // Parse the file to AST, registering our consumer as the AST consumer.
   ParseAST(PP, &TheConsumer, TheCompInst.getASTContext());
