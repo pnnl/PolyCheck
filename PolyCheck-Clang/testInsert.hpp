@@ -520,10 +520,10 @@ void GatherStmtOpIds(vector<string>& stmtOpIds, struct pet_expr* expr){
 void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set* domainSet){
   if (pet_expr_get_type(expr) == pet_expr_op){
     if (pet_expr_get_type(expr) == pet_op_assume
-        or pet_expr_get_type(expr) == pet_op_kill 
-        or pet_expr_get_type(expr) == pet_op_assume 
-        or pet_expr_get_type(expr) == pet_op_cond
-        or pet_expr_get_type(expr) == pet_op_last
+        || pet_expr_get_type(expr) == pet_op_kill 
+        || pet_expr_get_type(expr) == pet_op_assume 
+        || pet_expr_get_type(expr) == pet_op_cond
+        || pet_expr_get_type(expr) == pet_op_last
         ) return;
     GatherStmtOpIds(stmtVarIds, expr);
   }
@@ -615,7 +615,6 @@ std::string join(const std::vector<std::string>& vec, const std::string& sep) {
 
 class Statement {
     public:
-    std::vector<string> stmt_varids{};
     Statement() : stmt_id_{-1}, domain_{nullptr}, write_ref_{nullptr} {}
 
     Statement(const Statement& stmt) : stmt_id_{stmt.stmt_id_} {
@@ -634,7 +633,7 @@ class Statement {
         read_array_names_ = stmt.read_array_names_;
         write_array_name_ = stmt.write_array_name_;
         write_array_size_ = stmt.write_array_size_;
-        stmt_varids = stmt.stmt_varids;
+        stmt_varids_ = stmt.stmt_varids_;
     }
 
     Statement& operator = (Statement&& stmt){
@@ -658,7 +657,7 @@ class Statement {
         // std::cerr<<__FUNCTION__<<"\n isched-----\n"<<islw::to_string(isched)<<"\n-----\n";
         gather_references(pet_tree_expr_get_expr(pscop->stmts[stmt_id]->body));
 
-        GatherStmtVarIds(stmt_varids, pet_tree_expr_get_expr(pscop->stmts[stmt_id]->body), domain_);
+        GatherStmtVarIds(stmt_varids_, pet_tree_expr_get_expr(pscop->stmts[stmt_id]->body), domain_);
 
 #if 0
         isl_union_set* T = isl_union_map_range(islw::copy(S));
@@ -731,27 +730,27 @@ class Statement {
         assert(read_refs_.size() == array_sizes_.size());
         assert(read_refs_.size() == read_array_names_.size());
         if(write_ref_) {
-            for(size_t j = 0; j < write_array_size_; j++) {
+            for(auto j = 0; j < write_array_size_; j++) {
                 str += "int " + sname + "__w__" +
                        std::to_string(j) + " = " + "/*to be filled by ajay*/" +
                        ";\n";
             }
         }
         for(size_t i = 0; i < read_refs_.size(); i++) {
-            for(size_t j=0; j<array_sizes_[i]; j++) {
+            for(auto j=0; j<array_sizes_[i]; j++) {
                 str += "int " + sname + "__" + std::to_string(i) + "__" +
                        std::to_string(j) + " = " + "/*to be filled by ajay*/"+";\n";
             }
         }
         str += "\n";
-        for(size_t i = 0; i < read_refs_.size(); i++) {
+        for(auto i = 0U; i < read_refs_.size(); i++) {
             str += "_diff |= " + sname + "__" + std::to_string(i) + "(...)" +
                    "^" + "(int)(" + read_array_names_[i];
             if(array_sizes_[i] != 0) {
                 str += "[" + sname + "__" + std::to_string(i) + "__" +
                        std::to_string(0);
             }
-            for(size_t j = 1; j < array_sizes_[i]; j++) {
+            for(auto j = 1; j < array_sizes_[i]; j++) {
                 str += ", " + sname + "__" + std::to_string(i) + "__" +
                        std::to_string(j);
             }
@@ -764,7 +763,7 @@ class Statement {
             if(write_array_size_ != 0) {
                 str += "[" + sname + "__w__" + std::to_string(0);
             }
-            for(size_t j = 1; j < write_array_size_; j++) {
+            for(auto j = 1; j < write_array_size_; j++) {
                 str += ", " + sname + "__w__" + std::to_string(j);
             }
             if(write_array_size_ != 0) { str += "]"; }
@@ -772,6 +771,10 @@ class Statement {
         }
         str += "\n}\n";
         return str;
+    }
+
+    std::vector<string> stmt_varids() const {
+      return stmt_varids_;
     }
 
     private:
@@ -947,10 +950,9 @@ class Statement {
     isl_map* write_ref_;
     std::string write_array_name_;
     int write_array_size_;
+    std::vector<string> stmt_varids_;
     // isl_union_map* sched_;
 };
-
-
 
 struct PdLoc {
         PdLoc() : end(0) {}
@@ -962,8 +964,8 @@ struct PdLoc {
 class MyASTVisitor : public RecursiveASTVisitor<MyASTVisitor>
 {
 public:
-  MyASTVisitor (Preprocessor &PP, Rewriter  &R, PdLoc &loc, std::vector<Statement> checks, string prologue, string epilogue)
-    : PP(PP), TheRewriter(R), loc(loc), FaultTolerantRegionStarted(false), checks(checks), Prologue(prologue), Epilogue(epilogue), m_inForLine(false)
+  MyASTVisitor (Preprocessor &PP, Rewriter  &R, PdLoc &loc, std::vector<Statement> stmts, string prologue, string epilogue)
+    :  TheRewriter(R), loc(loc), PP(PP), FaultTolerantRegionStarted(false), stmts(stmts), Prologue(prologue), Epilogue(epilogue), m_inForLine(false)
   {}
   
   bool TraverseForStmt(ForStmt *fs)// Traverse for stmt to make mark
@@ -995,11 +997,6 @@ public:
 
     for (Stmt::child_iterator range = fs->child_begin(); range!=fs->child_end(); ++range)
     {
-        // int childrenc=0;
-        // for (Stmt::child_iterator rangec = fs->getBody()->child_begin(); rangec!=fs->getBody()->child_end(); ++rangec)
-        //    childrenc++;
-        // if(childrenc==0) continue;
-
       if(*range == fs->getBody()){
         m_inForLine = false;
         TraverseStmt(fs->getBody());
@@ -1107,88 +1104,20 @@ public:
 	  }// else
   }//void TraverseExprToGetStmtIters 
 
-  bool CheckStmtVarIds(vector<string> stmtVarIds, vector<string> statementsVarIds)
+  bool CheckStmtVarIds(vector<string> stmtVarIds, vector<string> petStmtVarIds)
   {
-    //    cout << "\nclang stmt var ids checker:" << stmtVarIds.size() << endl;
-    //  for (int i=0; i<stmtVarIds.size(); i++){
-    //   // if(statementsVarIds[i].empty()) cout << "empty, ";
-    //   cout << stmtVarIds[i] << ", " ;
-    //  }
-    //    cout << "\n pet stmt var ids checker:" << ":" << statementsVarIds.size() << "\n"; 
-
-    //  for (int i=0; i<statementsVarIds.size(); i++)
-    //   cout << statementsVarIds[i] << ", " ;
-
-    if (stmtVarIds.size() != statementsVarIds.size())
+    if (stmtVarIds.size() != petStmtVarIds.size())
+      return false;
+      
+    for (auto i=0U; i<stmtVarIds.size(); i++)
     {
-      return false;
-    }// if
-    else
-    {
-      for (int i=0; i<stmtVarIds.size(); i++)
-      {
-        // cout << "stmtVarIds: " << stmtVarIds[i] << endl;
-        // cout << "statementsVarIds: " << statementsVarIds[i] << endl;
-        if ( (stmtVarIds[i]).compare(statementsVarIds[i]) != 0)// equal
-          return false;
-      }// end for
-      return true;
-    }//else
-  }
-
-//bug:       LHS could not be expression
-//observe:   polyhedral relation will change a-b to -b + a,
-           //so every affine iter will have + operator and 
-           //with digit at the left and symbol at right.
-//fix:       detect +/-[>/% ... and replace with "\n"
-//res:       increase the number of symbols in the list
-           //obtain the real size by recoginize number 
-
-  bool isNum(string str)
-  {
-    stringstream sin(str);
-    double d;
-    char c;
-    if(!(sin >> d))
-      return false;
-    if (sin >> c)
-      return false;
+      if ((stmtVarIds[i]).compare(petStmtVarIds[i]) != 0)
+        return false;
+    }
     return true;
-  }//isNum
-
-  void ComputeCheckerIters(vector<string> &stmtVecIters, 
-                           vector<string> statementsIters, 
-                           set<string>    &checkerIters)
-  {
-    if (stmtVecIters.size() == statementsIters.size())
-    {
-      for (int i=0; i < stmtVecIters.size(); i++)
-      {
-        if ( !isNum(statementsIters[i]) )// if not number move on 
-        {
-          string* iterRet = new string("");
-          //cout << ">>" << statementsIters[i] <<">>\n";
-          // if contains "+"
-          if (statementsIters[i].length()>1 && (statementsIters[i]).find("+") > 0 && ((statementsIters[i]).find("+"))<(statementsIters[i]).length())
-          {
-            int pos = (statementsIters[i]).find("+");
-            *iterRet += (statementsIters[i]).substr(pos+1)+"="+stmtVecIters[i]+" - ("+(statementsIters[i]).substr(0,pos)+");\n";
-          }// if
-          else
-          {
-            *iterRet += statementsIters[i] + "=" + stmtVecIters[i] + ";\n";
-          }//else
-
-          checkerIters.insert(*iterRet);
-
-        }//if ( !isNum(statementsIters[i]) )
-        // do nothing if numbers 
-
-      }//for (int i=0; i < stmtVecIters.size(); i++)
-    }//if (stmtVecIters.size() == statementsIters.size())
-    else
-      cout << "ERROR: iterator size not equal " << endl;
+    
   }
+ 
   bool VisitBinaryOperator(BinaryOperator *b)
   {
     /*Standard checking begins*/
@@ -1223,8 +1152,7 @@ public:
         {
           // comment out the orginal stmt
           SourceLocation commentLocation = b->getLocStart();
-          // bug "{" to avoid checkers go beyond the for loop
-	        TheRewriter.InsertText(commentLocation, "{\n//", true, true);
+	        // TheRewriter.InsertText(commentLocation, "{\n//", true, true);
 
           vector<string> stmtVecIters;        // collect stmt index
           vector<string> stmtVarIds;          // collect stmt var ids
@@ -1234,6 +1162,8 @@ public:
           // Fix bug for CompoundAssignmentOp
           if (b->isCompoundAssignmentOp())
           {
+            TheRewriter.InsertText(commentLocation, "//", true, true);
+
             // add stmt var ids for compound assignment operator
             if (stmtVarIds.size() > 0 )
             {
@@ -1269,41 +1199,18 @@ public:
 	                     pTheCompInst_g->getLangOpts()) + 1;
 	        SourceLocation END1 = END.getLocWithOffset(offset);
 
-          // TheRewriter.InsertText(END1, "\n//<checkers>\n", true, true);
+          TheRewriter.InsertText(END1, "\n//---begin checks---\n", true, true);
           
           // iterate all stmts to find the right one
-          for (int i=0; i < checks.size(); i++)
+          for (auto i=0U; i < stmts.size(); i++)
           {
-            //for (int i=0; i<stmtVarIds.size(); i++)
-              //cout << "stmtVarIds: " << stmtVarIds[i] << endl;
-            //cout << "=============" << endl;
-
-            vector<string> statementsVarIds = checks[i].stmt_varids;
-            bool equal = CheckStmtVarIds(stmtVarIds, statementsVarIds);
-
+            vector<string> petStmtVarIds = stmts[i].stmt_varids();
+            bool equal = CheckStmtVarIds(stmtVarIds, petStmtVarIds);
             if (equal)
-            {
-              // set<string> checkerIters; 
-              //set<string>::iterator it;
-              // ComputeCheckerIters(stmtVecIters, statements[i]->getIterators(), checkerIters);
-              // if (checkerIters.size() > 0)
-              // {
-              //   for (it=checkerIters.begin(); it!=checkerIters.end(); it++)
-              //   {
-              //     TheRewriter.InsertText(END1, *it, true, true);
-              //   }
-              // }
+              TheRewriter.InsertText(END1, stmts[i].inline_checks(), true, true);
+          } //
 
-              // string* checker = statements[i]->GetDebugCode();
-              // if (checker != NULL)
-                TheRewriter.InsertText(END1, checks[i].inline_checks(), true, true);
-
-            }
-            
-            
-          }//for (int i=0; i < statements.size(); i++)
-
-          TheRewriter.InsertText(END1, "//</checkers>\n}", true, true);
+          TheRewriter.InsertText(END1, "//---end checks---\n", true, true);
           
 
         }//if ( lhsArray || rhsArray)
@@ -1349,7 +1256,7 @@ public:
 	      IfStmt *IfStatement = cast<IfStmt>(s);
 	      Stmt *Then = IfStatement->getThen();
 
-	      PresumedLoc PLoc = pTheCompInst_g->getSourceManager().getPresumedLoc(IfStatement->getLocStart());//, 1);
+	      // PresumedLoc PLoc = pTheCompInst_g->getSourceManager().getPresumedLoc(IfStatement->getLocStart());//, 1);
 	      // cout << "Line number is " << PLoc.getLine() << endl;
 	      // cout << "Line number is " << pTheCompInst_g->getSourceManager().getSpellingLineNumber(IfStatement->getLocStart(), 0) << endl;
 	      // cout << "Line number is " << pTheCompInst_g->getSourceManager().getExpansionLineNumber(IfStatement->getLocStart(), 0) << endl;
@@ -1371,10 +1278,10 @@ public:
 
 	      if (Else)
 	      {
-	        SourceLocation END = Else->getLocEnd();
-	        int offset = Lexer::MeasureTokenLength(END, pTheCompInst_g->getSourceManager(),
-	      					 pTheCompInst_g->getLangOpts()) + 1;
-          SourceLocation END1 = END.getLocWithOffset(offset);
+	        // SourceLocation END = Else->getLocEnd();
+	        // int offset = Lexer::MeasureTokenLength(END, pTheCompInst_g->getSourceManager(),
+	      					//  pTheCompInst_g->getLangOpts()) + 1;
+          // SourceLocation END1 = END.getLocWithOffset(offset);
 
 	        TheRewriter.InsertText(Else->getLocStart(), "// the 'else' part\n", true, true);
 	      }
@@ -1410,14 +1317,14 @@ public:
     //  }
 
      return true;
-  }//bool VisitFunctionDecl (FunctionDecl *f)
+  }
 
 private:
   Rewriter &TheRewriter;
   PdLoc &loc;
   Preprocessor &PP;
   bool FaultTolerantRegionStarted;
-  std::vector<Statement> checks;
+  std::vector<Statement> stmts;
   string Prologue;
   string Epilogue;
   bool m_inForLine;
@@ -1426,8 +1333,8 @@ private:
 class MyASTConsumer : public ASTConsumer
 {
 public:
-  MyASTConsumer(Preprocessor &PP, Rewriter &R, PdLoc &l, std::vector<Statement> checks, string prologue, string epilogue) :
-      Visitor (PP, R, l, checks, prologue, epilogue), loc(l), PP(PP), checks(checks), Prologue(prologue), Epilogue(epilogue)
+  MyASTConsumer(Preprocessor &PP, Rewriter &R, PdLoc &l, std::vector<Statement> stmts, string prologue, string epilogue) :
+      Visitor (PP, R, l, stmts, prologue, epilogue), loc(l), PP(PP), stmts(stmts), Prologue(prologue), Epilogue(epilogue)
   {
   }
 
@@ -1455,7 +1362,7 @@ private:
   MyASTVisitor Visitor;
   PdLoc &loc;
   Preprocessor &PP;
-  std::vector<Statement> checks;
+  std::vector<Statement> stmts;
   string Prologue;
   string Epilogue;
 
@@ -1541,7 +1448,7 @@ void WriteToFile(string outputFileName, string output)
 }// void WriteToFile(string outputFileName, string output)
 
 // ParseScop: the main file 
-int ParseScop(string fileName, std::vector<Statement> &checks, string prologue, string epilogue, string outputFileName)
+int ParseScop(string fileName, std::vector<Statement> &stmts, string prologue, string epilogue, string outputFileName)
 {
 
   // CompilerInstance will hold the instance of the Clang compiler,
@@ -1588,7 +1495,7 @@ int ParseScop(string fileName, std::vector<Statement> &checks, string prologue, 
 
   // Create an AST consumer instance which is going to get called by ParseAST
   //MyASTConsumer TheConsumer(PP, TheRewriter, loc, statements,returnValues.LiveDataCheckerCode);
-  MyASTConsumer TheConsumer(PP,TheRewriter,loc,checks, prologue,epilogue);
+  MyASTConsumer TheConsumer(PP,TheRewriter,loc,stmts, prologue,epilogue);
 
   // Parse the file to AST, registering our consumer as the AST consumer.
   ParseAST(PP, &TheConsumer, TheCompInst.getASTContext());

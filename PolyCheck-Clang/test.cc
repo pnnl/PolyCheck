@@ -205,7 +205,7 @@ isl_union_map* compute_bounded_map_from_str(
     int nparam          = param_values.size();
     assert(nparam == isl_union_map_dim(umap, isl_dim_param));
     std::string fixed_dim_str = islw::to_string(umap);
-    for(unsigned int i = 0; i < nparam; i++) {
+    for(auto i = 0; i < nparam; i++) {
         isl_id* id = isl_union_map_get_dim_id(umap, isl_dim_param, i);
         std::string name{isl_id_get_name(id)};
         assert(param_values.find(name) != param_values.end());
@@ -384,8 +384,8 @@ class Program {
       param_values_{pgm.param_values_},
       stmt_reads_spec_{pgm.stmt_reads_spec_},
       stmt_writes_spec_{pgm.stmt_writes_spec_},
-      stmt_refs_spec_{pgm.stmt_refs_spec_},
       schedule_spec_{pgm.schedule_spec_},
+      stmt_refs_spec_{pgm.stmt_refs_spec_},
       fw_spec_{pgm.fw_spec_},
       lw_spec_{pgm.lw_spec_},
       nw_spec_{pgm.nw_spec_},
@@ -804,7 +804,7 @@ class PolyCheck {
         // const ArrayInfo& ainfo = program_.array(array_name);
         // assert(ainfo.dim() == idx.size());
         std::string str = array_name + "[";
-        for(int i = 0; i < -1 + idx.size(); i++) {
+        for(int i = 0; i < -1 + (int)idx.size(); i++) {
             str += std::to_string(idx[i]) + ", ";
         }
         if(idx.size() > 0) { str += std::to_string(idx.back()); }
@@ -853,7 +853,7 @@ class PolyCheck {
 
         const StmtInfo& sinfo = program_.statement(stmt_name);
         assert(sinfo.arity() == read_ptrs.size());
-        for(size_t i = 0; i < sinfo.arity(); i++) {
+        for(auto i = 0; i < sinfo.arity(); i++) {
             assert(read_ptrs[i] != nullptr);
             assert(data_map_.find(read_ptrs[i]) != data_map_.end());
             const Instance& rloc    = data_map_[read_ptrs[i]];
