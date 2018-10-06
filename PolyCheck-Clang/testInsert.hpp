@@ -988,6 +988,11 @@ public:
       return false;
 
     m_inForLine = true;
+
+      clang::LangOptions LangOpts;
+      LangOpts.CPlusPlus = true;
+      clang::PrintingPolicy Policy(LangOpts);
+
     for (Stmt::child_iterator range = fs->child_begin(); range!=fs->child_end(); ++range)
     {
         // int childrenc=0;
@@ -995,9 +1000,18 @@ public:
         //    childrenc++;
         // if(childrenc==0) continue;
 
-      if(*range == fs->getBody())
+      if(*range == fs->getBody()){
         m_inForLine = false;
-      TraverseStmt(fs->getBody());
+        TraverseStmt(fs->getBody());
+      }
+
+      // cout << "------------------body start-------" << m_inForLine << "----------------\n";
+      // string fbdy;
+      // llvm::raw_string_ostream fbdyst(fbdy);
+      //  fs->getBody()->printPretty(fbdyst,NULL,Policy);
+      //  cout << fbdyst.str() << endl;
+      // cout << "------------------body end----------------\n";
+      
     }
     return true;
   }//bool TraverseForStmt(ForStmt *fs)
