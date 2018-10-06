@@ -1224,7 +1224,7 @@ public:
             if (stmtVarIds.size() > 0 )
             {
               int len = stmtVarIds.size();
-              for (int k=0; k<len; k++)
+              for (int k=1; k<len; k++)
               //for (int ca=0; ca<stmtVarIds.size(); ca++)
               {
                 //cout << "stmtVarIds: " << stmtVarIds[k] << endl;
