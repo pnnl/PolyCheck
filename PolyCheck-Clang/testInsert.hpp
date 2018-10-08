@@ -626,7 +626,7 @@ class Statement {
         for(const auto& rrc : stmt.read_ref_cards_) {
             read_ref_cards_.push_back(islw::copy(rrc));
         }
-        read_ref_macro_names_ = stmt.read_ref_macro_names_;
+        // read_ref_macro_names_ = stmt.read_ref_macro_names_;
         read_ref_macro_args_ = stmt.read_ref_macro_args_;
         read_ref_macro_exprs_ = stmt.read_ref_macro_exprs_;
         array_sizes_ = stmt.array_sizes_;
@@ -697,15 +697,15 @@ class Statement {
 
     std::string read_ref_macro_defs() const {
         std::string ret;
-        assert(read_refs_.size() == read_ref_macro_names_.size());
+        // assert(read_refs_.size() == read_ref_macro_names_.size());
         assert(read_ref_macro_names_.size() == read_ref_macro_args_.size());
         assert(read_ref_macro_names_.size() == read_ref_macro_exprs_.size());
-        std::cerr<<"NUM DEF MACROS="<<read_ref_macro_names_.size()<<"\n";
-        for(size_t i = 0; i < read_ref_macro_names_.size(); i++) {
-            std::cerr<<"name[i]="<<read_ref_macro_names_[i]<<"\n";
+        std::cerr<<"NUM DEF MACROS="<<read_refs_.size()<<"\n";
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            std::cerr<<"name[i]="<<read_ref_macro_name(i)<<"\n";
             std::cerr<<"args[i]="<<read_ref_macro_args_[i]<<"\n";
             std::cerr<<"exprs[i]="<<read_ref_macro_exprs_[i]<<"\n";
-            ret += "#define " + read_ref_macro_names_[i] +
+            ret += "#define " + read_ref_macro_name(i) +
                    read_ref_macro_args_[i] + "\t("+
                    read_ref_macro_exprs_[i] + ")\n";
         std::cerr<<"DEFS=\n"<<ret<<"\n";
@@ -716,9 +716,9 @@ class Statement {
 
     std::string read_ref_macro_undefs() const {
         std::string ret;
-        assert(read_refs_.size() == read_ref_macro_names_.size());
-        for(size_t i = 0; i < read_ref_macro_names_.size(); i++) {
-            ret += "#undef " + read_ref_macro_names_[i] + "\n";
+        // assert(read_refs_.size() == read_ref_macro_names_.size());
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            ret += "#undef " + read_ref_macro_name(i) + "\n";
         }
         std::cerr<<"UNDEFS=\n"<<ret<<"\n";
         return ret;
@@ -746,7 +746,8 @@ class Statement {
         }
         str += "\n";
         for(auto i = 0U; i < read_refs_.size(); i++) {
-            str += "_diff |= " + sname + "__" + std::to_string(i) + "(...)" +
+            str += "_diff |= " + read_ref_macro_name(i) + "(...)" +
+            //  sname + "__" + std::to_string(i) + "(...)" +
                    "^" + "(int)(" + read_ref_string(i) + ");\n";
             //         read_array_names_[i];
             // if(array_sizes_[i] != 0) {
@@ -950,9 +951,9 @@ class Statement {
             // std::cerr<<"STMT "<<stmt_id_<<" READ "<<i<<" SPACE TUPLE NAME:\n"
             // <<isl_space_get_tuple_name(isl_map_get_space(read_refs_[i]), isl_dim_in)<<"\n---\n";
 
-            str = std::string{isl_space_get_tuple_name(isl_map_get_space(read_refs_[i]), isl_dim_in)}+
-            "__"+ std::to_string(i);
-            read_ref_macro_names_.push_back(str);
+            // str = std::string{isl_space_get_tuple_name(isl_map_get_space(read_refs_[i]), isl_dim_in)}+
+            // "__"+ std::to_string(i);
+            // read_ref_macro_names_.push_back(str);
 
             // std::cerr<<"DOMAIN="<<islw::to_string(isl_space_domain(islw::copy(isl_map_get_space(read_refs_[i]))))<<"\n";
 
@@ -960,13 +961,17 @@ class Statement {
                                        isl_map_get_space(read_refs_[i])))),
                                      ",");
             read_ref_macro_args_.push_back("(" + iname + ")");
-            std::cerr << "RR MACRO= #define " << read_ref_macro_names_.back()
+            std::cerr << "RR MACRO= #define " << read_ref_macro_name(i)
                       << "     "<< read_ref_macro_args_.back() 
                       <<"    "<<islw::to_string(read_ref_cards_[i])<<"\n";
         }
         construct_read_ref_macro_exprs();
     }
 
+    std::string read_ref_macro_name(int read_ref_id) const {
+        return std::string{"V_S"} + std::to_string(stmt_id_) + "_r" +
+               std::to_string(read_ref_id);
+    }
     void construct_read_ref_macro_exprs() {
         for(size_t i=0; i<read_ref_cards_.size(); i++) {
             // read_ref_macro_exprs_.push_back(islw::to_string(read_ref_cards_[i]));
@@ -984,7 +989,7 @@ class Statement {
     std::vector<std::string> read_array_names_;
     std::vector<int> array_sizes_; //dimensionality of the i-th read array reference 
     std::vector<isl_union_pw_qpolynomial*> read_ref_cards_;
-    std::vector<std::string> read_ref_macro_names_;
+    // std::vector<std::string> read_ref_macro_names_;
     std::vector<std::string> read_ref_macro_args_;
     std::vector<std::string> read_ref_macro_exprs_;
     //std::vector<std::string> inline_checks_;
