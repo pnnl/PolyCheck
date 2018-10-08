@@ -731,43 +731,47 @@ class Statement {
         assert(read_refs_.size() == read_array_names_.size());
         if(write_ref_) {
             for(auto j = 0; j < write_array_size_; j++) {
-                str += "int " + sname + "__w__" +
-                       std::to_string(j) + " = " + "/*to be filled by ajay*/" +
+                str += "int " + write_ref_dim_string(j)+
+                       " = " + "/*to be filled by ajay*/" +
                        ";\n";
             }
         }
         for(size_t i = 0; i < read_refs_.size(); i++) {
             for(auto j=0; j<array_sizes_[i]; j++) {
-                str += "int " + sname + "__" + std::to_string(i) + "__" +
-                       std::to_string(j) + " = " + "/*to be filled by ajay*/"+";\n";
+                str += "int " +  read_ref_dim_string(i, j) +
+                //  sname + "__" + std::to_string(i) + "__" +
+                //        std::to_string(j) + 
+                       " = " + "/*to be filled by ajay*/"+";\n";
             }
         }
         str += "\n";
         for(auto i = 0U; i < read_refs_.size(); i++) {
             str += "_diff |= " + sname + "__" + std::to_string(i) + "(...)" +
-                   "^" + "(int)(" + read_array_names_[i];
-            if(array_sizes_[i] != 0) {
-                str += "[" + sname + "__" + std::to_string(i) + "__" +
-                       std::to_string(0);
-            }
-            for(auto j = 1; j < array_sizes_[i]; j++) {
-                str += ", " + sname + "__" + std::to_string(i) + "__" +
-                       std::to_string(j);
-            }
-            if(array_sizes_[i] != 0) { str += "]"; }
-            str += +");\n";
+                   "^" + "(int)(" + read_ref_string(i) + ");\n";
+            //         read_array_names_[i];
+            // if(array_sizes_[i] != 0) {
+            //     str += "[" + sname + "__" + std::to_string(i) + "__" +
+            //            std::to_string(0);
+            // }
+            // for(auto j = 1; j < array_sizes_[i]; j++) {
+            //     str += "][" + sname + "__" + std::to_string(i) + "__" +
+            //            std::to_string(j);
+            // }
+            // if(array_sizes_[i] != 0) { str += "]"; }
+            // str += +");\n";
         }
         str += "\n";
         if(write_ref_ != nullptr) {
-            str += write_array_name_;
-            if(write_array_size_ != 0) {
-                str += "[" + sname + "__w__" + std::to_string(0);
-            }
-            for(auto j = 1; j < write_array_size_; j++) {
-                str += ", " + sname + "__w__" + std::to_string(j);
-            }
-            if(write_array_size_ != 0) { str += "]"; }
-            str += " += 1s;\n";
+            // str += write_array_name_;
+            // if(write_array_size_ != 0) {
+            //     str += "[" + sname + "__w__" + std::to_string(0);
+            // }
+            // for(auto j = 1; j < write_array_size_; j++) {
+            //     str += "][" + sname + "__w__" + std::to_string(j);
+            // }
+            // if(write_array_size_ != 0) { str += "]"; }
+            str += write_ref_string();
+            str += " += 1;\n";
         }
         str += "\n}\n";
         return str;
@@ -778,6 +782,47 @@ class Statement {
     }
 
     private:
+    std::string statement_name() const {
+        return std::string{"_s"} + std::to_string(stmt_id_);
+    }
+
+    std::string read_ref_dim_string(int read_ref_id, int dim_id) const {
+        return statement_name() + "_r" + std::to_string(read_ref_id) + "_" +
+               std::to_string(dim_id);
+    }
+
+    std::string read_ref_string(int read_ref_id) const {
+      assert(read_ref_id >=0);
+      assert(read_ref_id < read_array_names_.size());
+      assert(read_ref_id < array_sizes_.size());
+      std::vector<std::string> dim_strings;
+      for(int i=0; i<array_sizes_[read_ref_id]; i++) {
+        dim_strings.push_back(read_ref_dim_string(read_ref_id, i));
+      } 
+      if(dim_strings.size() > 0) { 
+        return read_array_names_[read_ref_id] + "[" + join(dim_strings, "][") + "]";
+      } else {
+        return read_array_names_[read_ref_id];
+      }
+    }
+
+    std::string write_ref_dim_string(int dim_id) const {
+        return statement_name() + "_w_" + std::to_string(dim_id);
+    }
+
+    std::string write_ref_string() const {
+      assert(write_ref_ != nullptr);
+      std::vector<std::string> dim_strings;
+      for(int i=0; i<write_array_size_; i++) {
+        dim_strings.push_back(write_ref_dim_string(i));
+      } 
+      if(dim_strings.size() > 0) {
+        return write_array_name_ + "[" + join(dim_strings, "][") + "]";
+      } else {
+        return write_array_name_;
+      }
+    }
+
     void gather_references(pet_expr* expr) {
         if(pet_expr_get_type(expr) == pet_expr_access) {
             if(pet_expr_access_is_read(expr)) {
@@ -931,10 +976,6 @@ class Statement {
             if(str.empty()) { str = std::to_string(0); }
             read_ref_macro_exprs_.push_back(str);
         }        
-    }
-
-    std::string statement_name() const {
-        return std::string{"S_"} + std::to_string(stmt_id_);
     }
 
     int stmt_id_;
