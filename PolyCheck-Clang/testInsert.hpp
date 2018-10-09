@@ -751,9 +751,11 @@ class Statement {
             str += read_ref_macro_def_string(i);
         }
         str += "\n";
+        str += sinstance_args_decl_string() + "\n";
         for(auto i = 0U; i < read_refs_.size(); i++) {
-            str += "_diff |= " + read_ref_macro_name(i) + "(...)" +
-            //  sname + "__" + std::to_string(i) + "(...)" +
+            str += "_diff |= " + read_ref_macro_name(i) + "(" +
+                   sinstance_args_string() + ")" +
+                   //  sname + "__" + std::to_string(i) + "(...)" +
                    "^" + "(int)(" + read_ref_string(i) + ");\n";
             //         read_array_names_[i];
             // if(array_sizes_[i] != 0) {
@@ -843,14 +845,40 @@ class Statement {
         return "#undef " + read_ref_macro_name(read_ref_id)+"\n";
     }
 
+    std::string sinstance_dim_string(int id) const {
+      assert(id>=0);
+      assert(id < dim());
+      return statement_name() + "_i"+std::to_string(id);
+    }
+
+    std::string sinstance_args_decl_string() const {
+      std::string ret;
+        for(int i=0; i<dim(); i++) {
+            ret += "int "+sinstance_dim_string(i)+" = /*to be filled by sriram*/;\n";
+        }
+      return ret;
+    }
+
+    std::string sinstance_args_string() const {
+        std::vector<std::string> args;
+        for(int i=0; i<dim(); i++) {
+            args.push_back(sinstance_dim_string(i));
+        }
+        return join(args, ",");
+    }
+
     std::string read_ref_macro_def_string(int read_ref_id) const {
       assert(read_ref_id >=0);
       assert(read_ref_id < read_refs_.size());
       assert(read_ref_id > read_ref_macro_args_.size());
       assert(read_ref_id < read_ref_macro_exprs_.size());
-      return "#define " + read_ref_macro_name(read_ref_id) +
+      return "#if !defined(" + read_ref_macro_name(read_ref_id) + ")\n" +
+             "#define " + read_ref_macro_name(read_ref_id) +
              read_ref_macro_args_[read_ref_id] + "\t(" +
-             read_ref_macro_exprs_[read_ref_id] + ")\n";
+             read_ref_macro_exprs_[read_ref_id] + ")\n" + "#else\n" +
+             "#error \"Polycheck error : macro name conflict.Try a different\
+          prefix (not yet supported).\" \n" +
+             "#endif\n";
     }
 
     void gather_references(pet_expr* expr) {
@@ -1006,6 +1034,11 @@ class Statement {
             if(str.empty()) { str = std::to_string(0); }
             read_ref_macro_exprs_.push_back(str);
         }        
+    }
+
+    int dim() const {
+      assert(domain_);
+      return isl_set_n_dim(domain_);
     }
 
     int stmt_id_;
