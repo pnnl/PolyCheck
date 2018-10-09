@@ -1014,7 +1014,7 @@ std::string prolog(isl_union_map* R, isl_union_map* W) {
     // std::cerr << "RW elements = ";
     // isl_union_set_dump(RW);
     isl_union_set_foreach_set(RW, fn_prolog_per_set, &prolog);
-    prolog = "#include <assert.h>\n int _diff = 0;\n" + prolog + "\n";
+    prolog = "#include <assert.h>\n int _diff = 0;\n{\n" + prolog + "\n}\n";
     islw::destruct(RW);
     return prolog;
 }
@@ -1044,9 +1044,11 @@ std::string epilog(isl_union_map* W) {
     std::string epilog;
     isl_union_pw_qpolynomial* WC =
       isl_union_map_card(isl_union_map_reverse(islw::copy(W)));
+    epilog = "{\n";
     isl_union_pw_qpolynomial_foreach_pw_qpolynomial(WC, epilog_per_poly,
                                                     &epilog);
     epilog += "\n assert(_diff == 0); \n";
+    epilog += "\n}\n";
     islw::destruct(WC);
     return epilog;
 }
@@ -1161,14 +1163,14 @@ int main(int argc, char* argv[]) {
              stmts.push_back(Statement{i, scop});
          }
          for(const auto& stmt: stmts) {
-             defs += stmt.read_ref_macro_defs();
-             undefs += stmt.read_ref_macro_undefs();
+            //  defs += stmt.read_ref_macro_defs();
+            //  undefs += stmt.read_ref_macro_undefs();
              inline_checks.push_back(stmt.inline_checks());
          }
      }
 
-     const std::string prologue = prolog(R, W) + "\n" + defs;
-     const std::string epilogue = undefs + "\n" + epilog(W);
+     const std::string prologue = prolog(R, W) + "\n";// + defs;
+     const std::string epilogue = /*undefs + "\n" +*/ epilog(W);
      std::cout<<"Prolog\n------\n"<< prologue <<"\n----------\n";
      std::cout<<"Epilog\n------\n"<< epilogue <<"\n----------\n";
      std::cout<<"Inline checks\n------\n";

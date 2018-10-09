@@ -705,9 +705,10 @@ class Statement {
             std::cerr<<"name[i]="<<read_ref_macro_name(i)<<"\n";
             std::cerr<<"args[i]="<<read_ref_macro_args_[i]<<"\n";
             std::cerr<<"exprs[i]="<<read_ref_macro_exprs_[i]<<"\n";
-            ret += "#define " + read_ref_macro_name(i) +
-                   read_ref_macro_args_[i] + "\t("+
-                   read_ref_macro_exprs_[i] + ")\n";
+            // ret += "#define " + read_ref_macro_name(i) +
+            //        read_ref_macro_args_[i] + "\t("+
+            //        read_ref_macro_exprs_[i] + ")\n";
+            ret += read_ref_macro_def_string(i);
         std::cerr<<"DEFS=\n"<<ret<<"\n";
         }
         std::cerr<<"DEFS=\n"<<ret<<"\n";
@@ -718,9 +719,10 @@ class Statement {
         std::string ret;
         // assert(read_refs_.size() == read_ref_macro_names_.size());
         for(size_t i = 0; i < read_refs_.size(); i++) {
-            ret += "#undef " + read_ref_macro_name(i) + "\n";
+            //ret += "#undef " + read_ref_macro_name(i) + "\n";
+            ret += read_ref_macro_undef_string(i);
         }
-        std::cerr<<"UNDEFS=\n"<<ret<<"\n";
+        //std::cerr<<"UNDEFS=\n"<<ret<<"\n";
         return ret;
     }
 
@@ -743,6 +745,10 @@ class Statement {
                 //        std::to_string(j) + 
                        " = " + "/*to be filled by ajay*/"+";\n";
             }
+        }
+        str += "\n";
+        for(auto i = 0U; i < read_refs_.size(); i++) {
+            str += read_ref_macro_def_string(i);
         }
         str += "\n";
         for(auto i = 0U; i < read_refs_.size(); i++) {
@@ -773,6 +779,10 @@ class Statement {
             // if(write_array_size_ != 0) { str += "]"; }
             str += write_ref_string();
             str += " += 1;\n";
+        }
+        str += "\n";
+        for(auto i = 0U; i < read_refs_.size(); i++) {
+            str += read_ref_macro_undef_string(i);
         }
         str += "\n}\n";
         return str;
@@ -822,6 +832,25 @@ class Statement {
       } else {
         return write_array_name_;
       }
+    }
+
+    std::string read_ref_macro_name(int read_ref_id) const {
+        return std::string{"V_S"} + std::to_string(stmt_id_) + "_r" +
+               std::to_string(read_ref_id);
+    }
+
+    std::string read_ref_macro_undef_string(int read_ref_id) const {
+        return "#undef " + read_ref_macro_name(read_ref_id)+"\n";
+    }
+
+    std::string read_ref_macro_def_string(int read_ref_id) const {
+      assert(read_ref_id >=0);
+      assert(read_ref_id < read_refs_.size());
+      assert(read_ref_id > read_ref_macro_args_.size());
+      assert(read_ref_id < read_ref_macro_exprs_.size());
+      return "#define " + read_ref_macro_name(read_ref_id) +
+             read_ref_macro_args_[read_ref_id] + "\t(" +
+             read_ref_macro_exprs_[read_ref_id] + ")\n";
     }
 
     void gather_references(pet_expr* expr) {
@@ -968,10 +997,6 @@ class Statement {
         construct_read_ref_macro_exprs();
     }
 
-    std::string read_ref_macro_name(int read_ref_id) const {
-        return std::string{"V_S"} + std::to_string(stmt_id_) + "_r" +
-               std::to_string(read_ref_id);
-    }
     void construct_read_ref_macro_exprs() {
         for(size_t i=0; i<read_ref_cards_.size(); i++) {
             // read_ref_macro_exprs_.push_back(islw::to_string(read_ref_cards_[i]));
