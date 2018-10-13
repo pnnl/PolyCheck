@@ -256,6 +256,13 @@ void destruct(isl_union_set* uset) {
 }
 
 template<>
+void destruct(isl_val* obj) {
+    if(obj) {
+        isl_val_free(obj);
+    }
+}
+
+template<>
 void destruct(isl_union_map* umap) {
     if(umap) {
         isl_union_map_free(umap);
@@ -322,6 +329,20 @@ template<>
 void destruct(isl_qpolynomial* qp) {
     if(qp) {
         isl_qpolynomial_free(qp);
+    }
+}
+
+template<>
+void destruct(isl_pw_aff* obj) {
+    if(obj) {
+        isl_pw_aff_free(obj);
+    }
+}
+
+template<>
+void destruct(isl_space* obj) {
+    if(obj) {
+        isl_space_free(obj);
     }
 }
 
@@ -458,6 +479,7 @@ isl_stat print_pw_qpoly(__isl_take isl_pw_qpolynomial *pwqp, void *user) {
     std::string& str = *(std::string*)user;
     std::cout<<"pwqp in c:---\n"<<islw::to_c_string(pwqp)<<"\n---\n";
     str += islw::to_c_string(pwqp);
+    islw::destruct(pwqp);
     return isl_stat_ok;
 }
 
@@ -544,7 +566,10 @@ void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set
         || pet_expr_get_type(expr) == pet_op_assume 
         || pet_expr_get_type(expr) == pet_op_cond
         || pet_expr_get_type(expr) == pet_op_last
-        ) return;
+        ) {
+          pet_expr_free(expr);
+          return;
+        }
     GatherStmtOpIds(stmtVarIds, expr);
   }
 
@@ -555,6 +580,7 @@ void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set
       
       const char* wchar = isl_map_get_tuple_name(wmap, isl_dim_out);
       if (wchar) stmtVarIds.push_back(string(wchar));
+      islw::destruct(wmap);
     }
 
     if(pet_expr_access_is_read(expr)){
@@ -563,9 +589,12 @@ void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set
 
       const char* rchar = isl_map_get_tuple_name(rmap, isl_dim_out);
       if(rchar) stmtVarIds.push_back(rchar);
+      islw::destruct(rmap);
     }
   }else if (pet_expr_get_type(expr) == pet_expr_int){
-    string int_str = to_string(isl_val_sgn(pet_expr_int_get_val(expr))); 
+    isl_val* ival = pet_expr_int_get_val(expr);
+    string int_str = std::to_string(isl_val_sgn(ival));
+    islw::destruct(ival); 
     //cout << "integer: " << int_str << endl;
     stmtVarIds.push_back(int_str);
   }else if (pet_expr_get_type(expr) == pet_expr_double){
@@ -577,6 +606,7 @@ void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set
   for(int i=0; i<pet_expr_get_n_arg(expr); i++) {
     GatherStmtVarIds(stmtVarIds, pet_expr_get_arg(expr,i), domainSet);
   }
+  pet_expr_free(expr);
 }
 
 std::vector<std::string> iter_names(isl_set* iset) {
@@ -939,7 +969,7 @@ class Statement {
       std::string str = islw::to_string(read_dim_maps_[read_ref_id][dim_id]);
       isl_pw_aff* pwa =
         isl_pw_aff_read_from_str(islw::context(domain_), str.c_str());
-      return "#if defined(" + read_dim_id_macro_name(read_ref_id, dim_id) +
+      std::string ret = "#if defined(" + read_dim_id_macro_name(read_ref_id, dim_id) +
              ")\n" +
              "#error \"Polycheck error : macro name conflict.Try a different\
           prefix (not yet supported).\" \n" +
@@ -952,6 +982,8 @@ class Statement {
              //    isl_union_pw_multi_aff_from_union_map(isl_union_map_from_map(
              //      islw::copy(read_dim_maps_[read_ref_id][dim_id]))))
              "("+islw::to_c_string(pwa) + ")\n";
+      islw::destruct(pwa);
+      return ret;
     }
 
     std::string read_dim_id_macro_undef_string(int read_ref_id,
@@ -999,9 +1031,10 @@ class Statement {
                 // std::cout<<"ID----:"<<islw::to_string(pet_expr_access_get_ref_id(expr))<<"\n";
                 // std::cout<<"&&&&&expr narg="<<pet_expr_get_n_arg(expr)<<"\n";
                 //                           << isl_set_dim(isl_set_from_union_set(
-                array_sizes_.push_back(isl_set_dim(isl_set_from_union_set(
-                  isl_union_map_range(pet_expr_access_get_may_read(expr))),
-                  isl_dim_set));
+                isl_set* tmp_set = isl_set_from_union_set(
+                  isl_union_map_range(pet_expr_access_get_may_read(expr)));
+                array_sizes_.push_back(isl_set_dim(tmp_set, isl_dim_set));
+                islw::destruct(tmp_set);
                 std::cout<<"&&&& DIM "<<read_array_names_.back()<<" = "<<array_sizes_.back()<<"\n";
                 // array_sizes_.push_back(pet_expr_get_n_arg(expr));
                 #else
@@ -1020,10 +1053,11 @@ class Statement {
                 isl_id* id = pet_expr_access_get_id(expr);
                 write_array_name_ = islw::to_string(id);
                 islw::destruct(id);
-                write_array_size_ = isl_set_dim(isl_set_from_union_set(
-                  isl_union_map_range(pet_expr_access_get_may_write(expr))),
+                isl_set* tmp_set = isl_set_from_union_set(
+                  isl_union_map_range(pet_expr_access_get_may_write(expr)));
+                write_array_size_ = isl_set_dim(tmp_set,
                   isl_dim_set);
-
+                islw::destruct(tmp_set);
                 // const char* writeArray =
                 //   isl_map_get_tuple_name(write_ref_, isl_dim_out);
                 // statement->setWriteArrayName(string(writeArray));
@@ -1056,17 +1090,21 @@ class Statement {
           isl_union_map_reverse(islw::umap_compose(Sinv, W));
 
         for(size_t i=0; i<read_refs_.size(); i++) {
+          isl_union_map* rr_umap = isl_union_map_from_map(islw::copy(read_refs_[i]));
             isl_union_map* T_to_prevW = isl_union_map_intersect(
               islw::copy(LT),
               islw::umap_compose(
-                Sinv, isl_union_map_from_map(islw::copy(read_refs_[i])),
+                Sinv, rr_umap,
                 TWinv));
+                islw::destruct(rr_umap);
             isl_union_map* S_to_prevW = islw::umap_compose(S, T_to_prevW);
             read_ref_cards_.push_back(isl_union_map_card(islw::copy(S_to_prevW)));
             std::cerr << "STMT " << stmt_id_ << " READ " << i<<"\n";
             std::cerr<<"read_refs:\n"<<islw::to_string(read_refs_[i])<<"\n";
             std::cerr<<"LT:\n"<<islw::to_string(LT)<<"\n";
-            std::cerr<<"Space(T): "<<islw::to_string(isl_union_set_get_space(T))<<"\n";
+            auto* Tspc = isl_union_set_get_space(T);
+            std::cerr<<"Space(T): "<<islw::to_string(Tspc)<<"\n";
+            islw::destruct(Tspc);
             std::cerr<<"T:\n"<<islw::to_string(T)<<"\n";
             std::cerr<<"TWinv:\n"<<islw::to_string(TWinv)<<"\n";
             std::cerr<<"Sinv:\n"<<islw::to_string(Sinv)<<"\n";
@@ -1077,15 +1115,18 @@ class Statement {
 
             std::cout<<islw::to_string(read_ref_cards_.back())<<"\n------\n";
 
-            std::cout << "pw\n-------\n"
-                      << isl_pw_qpolynomial_to_str(isl_union_pw_qpolynomial_extract_pw_qpolynomial(
+            auto pwqp = isl_union_pw_qpolynomial_extract_pw_qpolynomial(
                           read_ref_cards_.back(),
                            isl_union_pw_qpolynomial_get_space(
-                             read_ref_cards_.back())))
+                             read_ref_cards_.back()));
+            std::cout << "pw\n-------\n"
+                      << isl_pw_qpolynomial_to_str(pwqp)
                       << "\n----\n";
+                      islw::destruct(pwqp);
             // std::cout<<islw::to_c_string(isl_union_pw_qpolynomial_to_polynomial()
             // read_ref_cards_.back())<<"\n------\n";
-            islw::destruct(T_to_prevW, S_to_prevW);
+            islw::destruct(S_to_prevW);
+            islw::destruct(T_to_prevW);
         }
         islw::destruct(Sinv, sinstances, T, LT, TWinv);
     }
@@ -1106,9 +1147,9 @@ class Statement {
 
             // std::cerr<<"DOMAIN="<<islw::to_string(isl_space_domain(islw::copy(isl_map_get_space(read_refs_[i]))))<<"\n";
 
-            std::string iname = join(iter_names(isl_space_domain(islw::copy(
-                                       isl_map_get_space(read_refs_[i])))),
-                                     ",");
+            auto tmp_sd = isl_space_domain(isl_map_get_space(read_refs_[i]));
+            std::string iname = join(iter_names(tmp_sd), ",");
+            islw::destruct(tmp_sd);
             read_ref_macro_args_.push_back("(" + iname + ")");
             std::cerr << "RR MACRO= #define " << read_ref_macro_name(i)
                       << "     "<< read_ref_macro_args_.back() 
@@ -1121,10 +1162,10 @@ class Statement {
         for(size_t i = 0; i < read_refs_.size(); i++) {
             read_dim_macro_args_.push_back({});
             for(int j = 0; j < array_sizes_[i]; j++) {
-                std::string iname =
-                  join(iter_names(isl_space_domain(
-                         islw::copy(isl_map_get_space(read_dim_maps_[i][j])))),
-                       ",");
+                auto tmp_sd =
+                  isl_space_domain(isl_map_get_space(read_dim_maps_[i][j]));
+                std::string iname = join(iter_names(tmp_sd), ",");
+                islw::destruct(tmp_sd);
                 read_dim_macro_args_.back().push_back(iname);
             }
         }

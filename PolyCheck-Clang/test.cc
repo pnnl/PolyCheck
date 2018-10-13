@@ -1180,7 +1180,7 @@ int main(int argc, char* argv[]) {
     std::cout<<"-------\n";
 
      ParseScop(target, stmts, prologue, epilogue, GetOutputFileName(filename));
-
+     stmts.clear();
      pet_scop_free(scop);
      isl_schedule_free(isched);
      islw::destruct(R, W, S, ctx);
