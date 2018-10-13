@@ -95,6 +95,16 @@ isl_ctx* context(isl_point* point) {
 }
 
 template<>
+isl_ctx* context(isl_union_pw_multi_aff* obj) {
+    return isl_union_pw_multi_aff_get_ctx(obj);
+}
+
+template<>
+isl_ctx* context(isl_pw_aff* obj) {
+    return isl_pw_aff_get_ctx(obj);
+}
+
+template<>
 isl_ctx* context(isl_set* iset) {
     return isl_set_get_ctx(iset);
 }
@@ -162,6 +172,16 @@ isl_printer* to_printer(isl_printer* printer, isl_schedule* obj) {
 template<>
 isl_printer* to_printer(isl_printer* printer, isl_set* obj) {
     return isl_printer_print_set(printer, obj);
+}
+
+template<>
+isl_printer* to_printer(isl_printer* printer, isl_union_pw_multi_aff* obj) {
+    return isl_printer_print_union_pw_multi_aff(printer, obj);
+}
+
+template<>
+isl_printer* to_printer(isl_printer* printer, isl_pw_aff* obj) {
+    return isl_printer_print_pw_aff(printer, obj);
 }
 
 template<>
@@ -634,6 +654,13 @@ class Statement {
         write_array_name_ = stmt.write_array_name_;
         write_array_size_ = stmt.write_array_size_;
         stmt_varids_ = stmt.stmt_varids_;
+        for(auto &rdms: stmt.read_dim_maps_) {
+          read_dim_maps_.push_back({});
+          for(auto& rdm: rdms) {
+            read_dim_maps_.back().push_back(islw::copy(rdm));
+          }
+        }
+        read_dim_macro_args_ = stmt.read_dim_macro_args_;
     }
 
     Statement& operator = (Statement&& stmt){
@@ -681,6 +708,8 @@ class Statement {
         gather_card(S, R,W);
         assert(read_refs_.size() == read_ref_cards_.size());
         construct_read_ref_macros();
+        construct_read_dim_maps();
+        construct_read_dim_macro_args();
         islw::destruct(R, W, isched, S);
     }
 
@@ -690,9 +719,17 @@ class Statement {
         for(auto rr: read_refs_) {
             islw::destruct(rr);
         }
+        read_refs_.clear();
         for(auto rrc: read_ref_cards_) {
             islw::destruct(rrc);
         }
+        read_ref_cards_.clear();
+        for(auto &rdm: read_dim_maps_) {
+          for(auto mp: rdm) {
+            islw::destruct(mp);
+          }
+        }
+        read_dim_maps_.clear();
     }
 
     std::string read_ref_macro_defs() const {
@@ -747,16 +784,31 @@ class Statement {
             }
         }
         str += "\n";
-        for(auto i = 0U; i < read_refs_.size(); i++) {
+        for(size_t i = 0; i < read_refs_.size(); i++) {
             str += read_ref_macro_def_string(i);
+        }
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            for(size_t j = 0; j < array_sizes_[i]; j++) {
+                str += read_dim_id_macro_def_string(i, j);
+            }
         }
         str += "\n";
         str += sinstance_args_decl_string() + "\n";
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            for(size_t j = 0; j < array_sizes_[i]; j++) {
+                str += "_diff |= " + read_dim_id_macro_name(i, j) +
+                       "(" + sinstance_args_string() + ")" + 
+                       " ^ " +
+                       read_ref_dim_string(i, j) +
+                       ";\n";
+            }
+        }
+        str += "\n";
         for(auto i = 0U; i < read_refs_.size(); i++) {
             str += "_diff |= " + read_ref_macro_name(i) + "(" +
                    sinstance_args_string() + ")" +
                    //  sname + "__" + std::to_string(i) + "(...)" +
-                   "^" + "(int)(" + read_ref_string(i) + ");\n";
+                   " ^ " + "(int)(" + read_ref_string(i) + ");\n";
             //         read_array_names_[i];
             // if(array_sizes_[i] != 0) {
             //     str += "[" + sname + "__" + std::to_string(i) + "__" +
@@ -779,10 +831,14 @@ class Statement {
             //     str += "][" + sname + "__w__" + std::to_string(j);
             // }
             // if(write_array_size_ != 0) { str += "]"; }
-            str += write_ref_string();
-            str += " += 1;\n";
+            str += write_ref_string() + " += 1;\n";
         }
         str += "\n";
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            for(size_t j = 0; j < array_sizes_[i]; j++) {
+                str += read_dim_id_macro_undef_string(i, j);
+            }
+        }
         for(auto i = 0U; i < read_refs_.size(); i++) {
             str += read_ref_macro_undef_string(i);
         }
@@ -837,7 +893,7 @@ class Statement {
     }
 
     std::string read_ref_macro_name(int read_ref_id) const {
-        return std::string{"V_S"} + std::to_string(stmt_id_) + "_r" +
+        return std::string{"PC_V_S"} + std::to_string(stmt_id_) + "_r" +
                std::to_string(read_ref_id);
     }
 
@@ -867,18 +923,54 @@ class Statement {
         return join(args, ",");
     }
 
+    std::string read_dim_id_macro_name(int read_ref_id, int dim_id) const {
+      assert(read_ref_id >=0);
+      assert(read_ref_id < read_refs_.size());
+      assert(read_ref_id < array_sizes_.size());
+      assert(dim_id >= 0 && dim_id < array_sizes_[read_ref_id]);
+      return "PC_I_S" + std::to_string(stmt_id_) + "_r" +
+             std::to_string(read_ref_id) + "_i" + std::to_string(dim_id);
+    }
+    std::string read_dim_id_macro_def_string(int read_ref_id, int dim_id) const {
+      assert(read_ref_id >= 0);
+      assert(read_ref_id < read_dim_macro_args_.size());
+      assert(domain_ != nullptr);
+      assert(dim_id < read_dim_macro_args_[read_ref_id].size());
+      std::string str = islw::to_string(read_dim_maps_[read_ref_id][dim_id]);
+      isl_pw_aff* pwa =
+        isl_pw_aff_read_from_str(islw::context(domain_), str.c_str());
+      return "#if defined(" + read_dim_id_macro_name(read_ref_id, dim_id) +
+             ")\n" +
+             "#error \"Polycheck error : macro name conflict.Try a different\
+          prefix (not yet supported).\" \n" +
+             "#endif\n" + "#define " +
+             read_dim_id_macro_name(read_ref_id, dim_id) + "  (" +
+             read_dim_macro_args_[read_ref_id][dim_id] + ")\t" +
+             //  islw::to_c_string(read_dim_maps_[read_ref_id][dim_id])
+
+             //  islw::to_c_string(
+             //    isl_union_pw_multi_aff_from_union_map(isl_union_map_from_map(
+             //      islw::copy(read_dim_maps_[read_ref_id][dim_id]))))
+             "("+islw::to_c_string(pwa) + ")\n";
+    }
+
+    std::string read_dim_id_macro_undef_string(int read_ref_id,
+                                               int dim_id) const {
+        return "#undef " + read_dim_id_macro_name(read_ref_id, dim_id) + "\n";
+    }
+
     std::string read_ref_macro_def_string(int read_ref_id) const {
       assert(read_ref_id >=0);
       assert(read_ref_id < read_refs_.size());
       assert(read_ref_id > read_ref_macro_args_.size());
       assert(read_ref_id < read_ref_macro_exprs_.size());
-      return "#if !defined(" + read_ref_macro_name(read_ref_id) + ")\n" +
-             "#define " + read_ref_macro_name(read_ref_id) +
-             read_ref_macro_args_[read_ref_id] + "\t(" +
-             read_ref_macro_exprs_[read_ref_id] + ")\n" + "#else\n" +
+      return "#if defined(" + read_ref_macro_name(read_ref_id) + ")\n" +
              "#error \"Polycheck error : macro name conflict.Try a different\
           prefix (not yet supported).\" \n" +
-             "#endif\n";
+             "#endif\n" +
+             "#define " + read_ref_macro_name(read_ref_id) +
+             read_ref_macro_args_[read_ref_id] + "\t(" +
+             read_ref_macro_exprs_[read_ref_id] + ")\n";
     }
 
     void gather_references(pet_expr* expr) {
@@ -1025,6 +1117,37 @@ class Statement {
         construct_read_ref_macro_exprs();
     }
 
+    void construct_read_dim_macro_args() {
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            read_dim_macro_args_.push_back({});
+            for(int j = 0; j < array_sizes_[i]; j++) {
+                std::string iname =
+                  join(iter_names(isl_space_domain(
+                         islw::copy(isl_map_get_space(read_dim_maps_[i][j])))),
+                       ",");
+                read_dim_macro_args_.back().push_back(iname);
+            }
+        }
+    }
+
+    void construct_read_dim_maps() {
+      assert(read_refs_.size() == array_sizes_.size());
+      for(size_t i=0; i<read_refs_.size(); i++) {
+        read_dim_maps_.push_back({});
+        for(int j=0; j<array_sizes_[i]; j++) {
+          isl_map* rm = islw::copy(read_refs_[i]);
+          if(j < array_sizes_[i]-1) {
+              rm = isl_map_project_out(rm, isl_dim_out, j + 1,
+                                       array_sizes_[i] -1 - j);
+          }
+          if(j>0) {
+              rm = isl_map_project_out(rm, isl_dim_out, 0, j);
+          }
+          read_dim_maps_.back().push_back(rm);
+        }
+      }
+    }
+
     void construct_read_ref_macro_exprs() {
         for(size_t i=0; i<read_ref_cards_.size(); i++) {
             // read_ref_macro_exprs_.push_back(islw::to_string(read_ref_cards_[i]));
@@ -1055,6 +1178,8 @@ class Statement {
     std::string write_array_name_;
     int write_array_size_;
     std::vector<string> stmt_varids_;
+    std::vector<std::vector<isl_map*>> read_dim_maps_;
+    std::vector<std::vector<std::string>> read_dim_macro_args_;
     // isl_union_map* sched_;
 };
 
