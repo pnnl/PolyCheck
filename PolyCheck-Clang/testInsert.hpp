@@ -823,6 +823,10 @@ class Statement {
             }
         }
         str += "\n";
+        for(size_t i = 0; i < dim(); i++) {
+            str += sinstance_macro_decl_string(i);
+        }
+        str += "\n";
         str += sinstance_args_decl_string() + "\n";
         for(size_t i = 0; i < read_refs_.size(); i++) {
             for(size_t j = 0; j < array_sizes_[i]; j++) {
@@ -938,11 +942,12 @@ class Statement {
     }
 
     std::string sinstance_args_decl_string() const {
-      std::string ret;
-        for(int i=0; i<dim(); i++) {
-            ret += "int "+sinstance_dim_string(i)+" = /*to be filled by sriram*/;\n";
+        std::string ret;
+        for(int i = 0; i < dim(); i++) {
+            ret += "int " + sinstance_dim_string(i) + " = " +
+                   sinstance_macro_name(i) + " (...);\n";
         }
-      return ret;
+        return ret;
     }
 
     std::string sinstance_args_string() const {
@@ -951,6 +956,21 @@ class Statement {
             args.push_back(sinstance_dim_string(i));
         }
         return join(args, ",");
+    }
+
+    std::string sinstance_macro_name(int dim_id) const {
+        return std::string{"PC_I_S"} + std::to_string(stmt_id_) + "_" +
+               std::to_string(dim_id);
+    }
+
+    std::string sinstance_macro_args_string(int dim_id) const {
+        return "(...)";
+    }
+
+    std::string sinstance_macro_decl_string(int dim_id) const {
+        return "#define " + sinstance_macro_name(dim_id) + " " +
+               sinstance_macro_args_string(dim_id) + "\t" +
+               "/*to be filled by sriram*/\n";
     }
 
     std::string read_dim_id_macro_name(int read_ref_id, int dim_id) const {
