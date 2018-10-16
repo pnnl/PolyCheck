@@ -15,6 +15,11 @@ GMP_INSTALL_PATH=  #Optional if in standard library path
 
 #CFLAGS = -fno-rtti
 
+SOURCE_FILES	=	\
+			PolyCheck.cpp Orchestrator.cpp Statement.cpp DependenceAnalyzer.cpp Dependences.cpp \
+			GeneralUtilityClass.cpp CodeParser.cpp UnusedComputer.cpp \
+			Processor.cpp LiveDataComputer.cpp DebugComputer.cpp UnusedDeclComputer.cpp 
+
 BINARY_FILE	= PolyCheck
 
 LLVM_LIBS=all
@@ -39,11 +44,11 @@ TEMP1_FILES = $(TEMP0_FILES:.C=.o)
 OBJECT_FILES = $(TEMP1_FILES:.cc=.o)
 OTHER_BINARIES = 
 
-newpc: PolyCheck.o 
+newpc: test.o 
 		$(CXX)  -o newpc $(LDFLAGS) test.o $(OTHER_BINARIES) $(LIBRARY_FLAGS)
 
-PolyCheck.o: PolyCheck.cpp PolyCheck.hpp
-		$(CXX) -c $(CXXFLAGS) PolyCheck.cpp
+test.o: test.cc testInsert.hpp
+		$(CXX) -c $(CXXFLAGS) test.cc
 
 
 all		:	$(BINARY_FILE)
