@@ -39,9 +39,6 @@ TEMP1_FILES = $(TEMP0_FILES:.C=.o)
 OBJECT_FILES = $(TEMP1_FILES:.cc=.o)
 OTHER_BINARIES = 
 
-newpc: PolyCheck.o 
-		$(CXX)  -o newpc $(LDFLAGS) test.o $(OTHER_BINARIES) $(LIBRARY_FLAGS)
-
 PolyCheck.o: PolyCheck.cpp PolyCheck.hpp
 		$(CXX) -c $(CXXFLAGS) PolyCheck.cpp
 
