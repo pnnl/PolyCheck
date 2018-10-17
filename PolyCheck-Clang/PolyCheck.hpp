@@ -986,22 +986,34 @@ class Statement {
       assert(read_ref_id < read_dim_macro_args_.size());
       assert(domain_ != nullptr);
       assert(dim_id < read_dim_macro_args_[read_ref_id].size());
-      std::string str = islw::to_string(read_dim_maps_[read_ref_id][dim_id]);
+
+      isl_map* newm = isl_map_set_tuple_name(
+        islw::copy(read_dim_maps_[read_ref_id][dim_id]), isl_dim_out, "");
+      std::cerr << islw::to_string(newm) << "\n";
+      std::string str = islw::to_string(newm);
       isl_pw_aff* pwa =
         isl_pw_aff_read_from_str(islw::context(domain_), str.c_str());
-      std::string ret = "#if defined(" + read_dim_id_macro_name(read_ref_id, dim_id) +
+      islw::destruct(newm);
+
+      std::string ret;
+#if 0
+      ret = "#if defined(" + read_dim_id_macro_name(read_ref_id, dim_id) +
              ")\n" +
              "#error \"Polycheck error : macro name conflict.Try a different\
           prefix (not yet supported).\" \n" +
-             "#endif\n" + "#define " +
-             read_dim_id_macro_name(read_ref_id, dim_id) + "  (" +
+             "#endif\n";
+#endif
+      std::cerr << "READ_DIM_ID_DIM_STRING. stmt=" << stmt_id_
+                << " read_ref=" << read_ref_id << " dim_id=" << dim_id << "\n";
+                std::cerr<<"STRING = |"<<str<<"| \n";
+      ret += "#define " + read_dim_id_macro_name(read_ref_id, dim_id) + "  (" +
              read_dim_macro_args_[read_ref_id][dim_id] + ")\t" +
              //  islw::to_c_string(read_dim_maps_[read_ref_id][dim_id])
 
              //  islw::to_c_string(
              //    isl_union_pw_multi_aff_from_union_map(isl_union_map_from_map(
              //      islw::copy(read_dim_maps_[read_ref_id][dim_id]))))
-             "("+islw::to_c_string(pwa) + ")\n";
+             "(" + islw::to_c_string(pwa) + ")\n";
       islw::destruct(pwa);
       return ret;
     }
@@ -1016,13 +1028,18 @@ class Statement {
       assert(read_ref_id < read_refs_.size());
       assert(read_ref_id > read_ref_macro_args_.size());
       assert(read_ref_id < read_ref_macro_exprs_.size());
-      return "#if defined(" + read_ref_macro_name(read_ref_id) + ")\n" +
-             "#error \"Polycheck error : macro name conflict.Try a different\
+      std::string ret;
+#if 0
+      ret =
+        "#if defined(" + read_ref_macro_name(read_ref_id) + ")\n" +
+        "#error \"Polycheck error : macro name conflict.Try a different\
           prefix (not yet supported).\" \n" +
-             "#endif\n" +
-             "#define " + read_ref_macro_name(read_ref_id) +
+        "#endif\n";
+#endif
+      ret += "#define " + read_ref_macro_name(read_ref_id) +
              read_ref_macro_args_[read_ref_id] + "\t(" +
              read_ref_macro_exprs_[read_ref_id] + ")\n";
+      return ret;
     }
 
     void gather_references(pet_expr* expr) {

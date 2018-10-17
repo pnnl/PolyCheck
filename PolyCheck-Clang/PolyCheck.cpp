@@ -1074,7 +1074,7 @@ int main(int argc, char* argv[]) {
     // std::string schedule = "[ni, nj] -> { S_0[i, j] -> [o0, o1] : o0 = i and
     // o1 = j and i >= 0 and i < ni and j >= 0 and j < nj and j <= 1023 }";
 
-    assert(argc == 2);
+    assert(argc == 3);
     std::string filename{argv[1]};
     std::string target{argv[2]};
 
