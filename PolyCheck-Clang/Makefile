@@ -39,15 +39,15 @@ TEMP1_FILES = $(TEMP0_FILES:.C=.o)
 OBJECT_FILES = $(TEMP1_FILES:.cc=.o)
 OTHER_BINARIES = 
 
+
+$(BINARY_FILE):	PolyCheck.o
+			$(CXX) -o $(BINARY_FILE) $(LDFLAGS) PolyCheck.o $(OTHER_BINARIES) $(LIBRARY_FLAGS)
+
 PolyCheck.o: PolyCheck.cpp PolyCheck.hpp
 		$(CXX) -c $(CXXFLAGS) PolyCheck.cpp
 
-
 all		:	$(BINARY_FILE)
 
-$(BINARY_FILE)	:	$(OBJECT_FILES)
-			$(CXX) -o $(BINARY_FILE) $(LDFLAGS) $(OBJECT_FILES) $(OTHER_BINARIES) $(LIBRARY_FLAGS)
-                        
 .cpp.o          :
 			$(CXX) -c $(CXXFLAGS) -o $@ $<
 .C.o            :
