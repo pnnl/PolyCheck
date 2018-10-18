@@ -792,7 +792,18 @@ class Statement {
             }
         }
         isl_map* refs_to_stmt = isl_map_reverse(stmt_to_refs);
-        std::cerr<<"&&&&&&&|"<<islw::to_string(refs_to_stmt)<<"|\n";
+        std::vector<std::string> ref_args;
+        for(int r = 0; r < read_refs_.size(); r++) {
+            for(int d = 0; d < array_sizes_[r]; d++) {
+                ref_args.push_back(read_ref_dim_string(r, d));
+            }
+        }
+        if(write_ref_) {
+            for(int d = 0; d < write_array_size_; d++) {
+                ref_args.push_back(write_ref_dim_string(d));
+            }
+        }
+        std::cerr << "&&&&&&&|" << islw::to_string(refs_to_stmt) << "|\n";
         int ndim = dim();
         for(int i=0; i<ndim; i++) {
             isl_map* r2si = islw::copy(refs_to_stmt);
@@ -802,6 +813,13 @@ class Statement {
             }
             if(i > 0) { r2si = isl_map_project_out(r2si, isl_dim_out, 0, i); }
             std::cerr << "&&&&&&&-----|" << islw::to_string(r2si) << "|\n";
+            if(isl_map_is_single_valued(r2si) != isl_bool_true) {
+                std::cerr << __FUNCTION__ << " : " << __LINE__ << ":\n"
+                          << "Error: map is not single valued. maynot be "
+                             "convertible to pwaff for dimension "
+                          << i << ". Exiting\n";
+                exit(-1);
+            }
             auto upma =
               isl_union_pw_multi_aff_from_union_map(isl_union_map_from_map(
                 isl_map_set_tuple_name(islw::copy(r2si), isl_dim_out, "")));
@@ -809,6 +827,11 @@ class Statement {
             std::cerr << "&&&&&&&---upw--|" << tmp_str << "|\n";
             auto pwa =
               isl_pw_aff_read_from_str(islw::context(r2si), tmp_str.c_str());
+            if(pwa == nullptr) {
+                std::cerr<<__FUNCTION__<<" : "<<__LINE__<<":\n"
+                <<"Error: unable to create pw_aff for dimension "<<i<<". Exiting\n";
+                exit(-1);
+            }
             std::cerr<<"&&&&&&&---pw--|"<<islw::to_string(pwa)<<"|\n";
             std::cerr<<"&&&&&&&---pw(c)--|"<<islw::to_c_string(pwa)<<"|\n";
             sinstance_macro_exprs_.push_back(std::string{"("}+islw::to_c_string(pwa)+")");
@@ -818,17 +841,7 @@ class Statement {
             islw::destruct(tmp_sd);
             sinstance_macro_params_.push_back("(" + iname + ")");
 
-            std::vector<std::string> args;
-            for(int r = 0; r<read_refs_.size(); r++) {
-                for(int d=0; d<array_sizes_[r]; d++) {
-                    args.push_back(read_ref_dim_string(r, d));
-                }
-            }
-            if(write_ref_) {
-                for(int d=0; d<write_array_size_; d++) {
-                    args.push_back(write_ref_dim_string(d));
-                }
-            }
+            std::vector<std::string> args = ref_args;
             sinstance_macro_args_.push_back(std::string{"("} + join(args, ",") +
                                             ")");
 
