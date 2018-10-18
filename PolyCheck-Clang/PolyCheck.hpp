@@ -284,6 +284,13 @@ void destruct(isl_ctx* ctx) {
 }
 
 template<>
+void destruct(isl_union_pw_multi_aff* obj) {
+    if(obj) {
+        isl_union_pw_multi_aff_free(obj);
+    }
+}
+
+template<>
 void destruct(isl_printer* prt) {
     if(prt) {
         isl_printer_free(prt);
@@ -684,6 +691,9 @@ class Statement {
         write_array_name_ = stmt.write_array_name_;
         write_array_size_ = stmt.write_array_size_;
         stmt_varids_ = stmt.stmt_varids_;
+        sinstance_macro_exprs_ = stmt.sinstance_macro_exprs_;
+        sinstance_macro_params_ = stmt.sinstance_macro_params_;
+        sinstance_macro_args_ = stmt.sinstance_macro_args_;
         for(auto &rdms: stmt.read_dim_maps_) {
           read_dim_maps_.push_back({});
           for(auto& rdm: rdms) {
@@ -740,6 +750,7 @@ class Statement {
         construct_read_ref_macros();
         construct_read_dim_maps();
         construct_read_dim_macro_args();
+        construct_sinstance_macros();
         islw::destruct(R, W, isched, S);
     }
 
@@ -760,6 +771,73 @@ class Statement {
           }
         }
         read_dim_maps_.clear();
+    }
+
+    void construct_sinstance_macros() {
+        isl_map* stmt_to_refs = nullptr;
+        for(auto rr : read_refs_) {
+            if(stmt_to_refs == nullptr) {
+                stmt_to_refs = islw::copy(rr);
+            } else {
+                stmt_to_refs =
+                  isl_map_flat_range_product(stmt_to_refs, islw::copy(rr));
+            }
+        }
+        if(write_ref_) {
+            if(stmt_to_refs == nullptr) {
+                stmt_to_refs = islw::copy(write_ref_);
+            } else {
+                stmt_to_refs = isl_map_flat_range_product(
+                  stmt_to_refs, islw::copy(write_ref_));
+            }
+        }
+        isl_map* refs_to_stmt = isl_map_reverse(stmt_to_refs);
+        std::cerr<<"&&&&&&&|"<<islw::to_string(refs_to_stmt)<<"|\n";
+        int ndim = dim();
+        for(int i=0; i<ndim; i++) {
+            isl_map* r2si = islw::copy(refs_to_stmt);
+            if(i<ndim-1) {
+                r2si =
+                  isl_map_project_out(r2si, isl_dim_out, i + 1, ndim - 1 - i);
+            }
+            if(i > 0) { r2si = isl_map_project_out(r2si, isl_dim_out, 0, i); }
+            std::cerr << "&&&&&&&-----|" << islw::to_string(r2si) << "|\n";
+            auto upma =
+              isl_union_pw_multi_aff_from_union_map(isl_union_map_from_map(
+                isl_map_set_tuple_name(islw::copy(r2si), isl_dim_out, "")));
+            std::string tmp_str = islw::to_string(upma);
+            std::cerr << "&&&&&&&---upw--|" << tmp_str << "|\n";
+            auto pwa =
+              isl_pw_aff_read_from_str(islw::context(r2si), tmp_str.c_str());
+            std::cerr<<"&&&&&&&---pw--|"<<islw::to_string(pwa)<<"|\n";
+            std::cerr<<"&&&&&&&---pw(c)--|"<<islw::to_c_string(pwa)<<"|\n";
+            sinstance_macro_exprs_.push_back(std::string{"("}+islw::to_c_string(pwa)+")");
+
+            auto tmp_sd       = isl_space_domain(isl_pw_aff_get_space(pwa));
+            std::string iname = join(iter_names(tmp_sd), ",");
+            islw::destruct(tmp_sd);
+            sinstance_macro_params_.push_back("(" + iname + ")");
+
+            std::vector<std::string> args;
+            for(int r = 0; r<read_refs_.size(); r++) {
+                for(int d=0; d<array_sizes_[r]; d++) {
+                    args.push_back(read_ref_dim_string(r, d));
+                }
+            }
+            if(write_ref_) {
+                for(int d=0; d<write_array_size_; d++) {
+                    args.push_back(write_ref_dim_string(d));
+                }
+            }
+            sinstance_macro_args_.push_back(std::string{"("} + join(args, ",") +
+                                            ")");
+
+            islw::destruct(upma);
+            islw::destruct(pwa);
+            islw::destruct(r2si);
+        }
+
+        islw::destruct(refs_to_stmt);
     }
 
     std::string read_ref_macro_defs() const {
@@ -868,6 +946,10 @@ class Statement {
             str += write_ref_string() + " += 1;\n";
         }
         str += "\n";
+        for(size_t i = 0; i < dim(); i++) {
+            str += sinstance_macro_undef_string(i);
+        }
+        str += "\n";
         for(size_t i = 0; i < read_refs_.size(); i++) {
             for(size_t j = 0; j < array_sizes_[i]; j++) {
                 str += read_dim_id_macro_undef_string(i, j);
@@ -945,7 +1027,8 @@ class Statement {
         std::string ret;
         for(int i = 0; i < dim(); i++) {
             ret += "int " + sinstance_dim_string(i) + " = " +
-                   sinstance_macro_name(i) + " (...);\n";
+                   sinstance_macro_name(i) + 
+                    sinstance_macro_args_string(i)+";\n";
         }
         return ret;
     }
@@ -963,14 +1046,26 @@ class Statement {
                std::to_string(dim_id);
     }
 
+    std::string sinstance_macro_params_string(int dim_id) const {
+        assert(dim_id >=0 && dim_id< dim());
+        return sinstance_macro_params_[dim_id];
+    }
+
     std::string sinstance_macro_args_string(int dim_id) const {
-        return "(...)";
+        assert(dim_id >=0 && dim_id< dim());
+        return sinstance_macro_args_[dim_id];
     }
 
     std::string sinstance_macro_decl_string(int dim_id) const {
+        assert(dim_id >=0 && dim_id< dim());
         return "#define " + sinstance_macro_name(dim_id) + " " +
-               sinstance_macro_args_string(dim_id) + "\t" +
-               "/*to be filled by sriram*/\n";
+               sinstance_macro_params_string(dim_id) + "\t" +
+               sinstance_macro_exprs_[dim_id]+"\n";
+            //    "/*to be filled by sriram*/\n";
+    }
+
+    std::string sinstance_macro_undef_string(int dim_id) const {
+        return "#undef " + sinstance_macro_name(dim_id) + "\n";
     }
 
     std::string read_dim_id_macro_name(int read_ref_id, int dim_id) const {
@@ -1256,6 +1351,9 @@ class Statement {
     std::string write_array_name_;
     int write_array_size_;
     std::vector<string> stmt_varids_;
+    std::vector<std::string> sinstance_macro_exprs_;
+    std::vector<std::string> sinstance_macro_params_;
+    std::vector<std::string> sinstance_macro_args_;
     std::vector<std::vector<isl_map*>> read_dim_maps_;
     std::vector<std::vector<std::string>> read_dim_macro_args_;
     // isl_union_map* sched_;
