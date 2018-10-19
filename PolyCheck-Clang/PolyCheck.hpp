@@ -490,82 +490,6 @@ isl_stat print_pw_qpoly(__isl_take isl_pw_qpolynomial *pwqp, void *user) {
     return isl_stat_ok;
 }
 
-void GatherStmtOpIds(vector<string>& stmtOpIds, struct pet_expr* expr){
-  if(pet_expr_op_get_type(expr) == pet_op_add_assign)
-    stmtOpIds.push_back(string("+="));
-  else if(pet_expr_op_get_type(expr) == pet_op_sub_assign)
-    stmtOpIds.push_back(string("-="));
-  else if(pet_expr_op_get_type(expr) == pet_op_mul_assign)
-    stmtOpIds.push_back(string("*="));
-  else if(pet_expr_op_get_type(expr) == pet_op_div_assign)
-    stmtOpIds.push_back(string("/="));
-  else if(pet_expr_op_get_type(expr) == pet_op_and_assign)
-    stmtOpIds.push_back(string("&="));
-  else if(pet_expr_op_get_type(expr) == pet_op_xor_assign)
-    stmtOpIds.push_back(string("^="));
-  else if(pet_expr_op_get_type(expr) == pet_op_or_assign)
-    stmtOpIds.push_back(string("|="));
-
-  else if(pet_expr_op_get_type(expr) == pet_op_assign)
-    stmtOpIds.push_back(string("="));
-  else if(pet_expr_op_get_type(expr) == pet_op_add)
-    stmtOpIds.push_back(string("+"));
-  else if(pet_expr_op_get_type(expr) == pet_op_sub)
-    stmtOpIds.push_back(string("-"));
-  else if(pet_expr_op_get_type(expr) == pet_op_mul)
-    stmtOpIds.push_back(string("*"));
-  else if(pet_expr_op_get_type(expr) == pet_op_div)
-    stmtOpIds.push_back(string("/"));
-  else if(pet_expr_op_get_type(expr) == pet_op_mod)
-    stmtOpIds.push_back(string("%"));
-  else if(pet_expr_op_get_type(expr) == pet_op_eq)
-    stmtOpIds.push_back(string("=="));
-  else if(pet_expr_op_get_type(expr) == pet_op_ne)
-    stmtOpIds.push_back(string("!="));
-  else if(pet_expr_op_get_type(expr) == pet_op_address_of)
-    stmtOpIds.push_back(string("&"));
-
-  else if(pet_expr_op_get_type(expr) == pet_op_and 
-      or pet_expr_op_get_type(expr) == pet_op_land)
-    stmtOpIds.push_back(string("&"));
-  else if(pet_expr_op_get_type(expr) == pet_op_xor)
-    stmtOpIds.push_back(string("&"));
-  else if(pet_expr_op_get_type(expr) == pet_op_or
-      or pet_expr_op_get_type(expr) == pet_op_lor)
-    stmtOpIds.push_back(string("&"));
-  else if(pet_expr_op_get_type(expr) == pet_op_not
-      or pet_expr_op_get_type(expr) == pet_op_lnot)
-    stmtOpIds.push_back(string("&"));
-
-  else if(pet_expr_op_get_type(expr) == pet_op_shl)
-    stmtOpIds.push_back(string("<<"));
-  else if(pet_expr_op_get_type(expr) == pet_op_shr)
-    stmtOpIds.push_back(string(">>"));
-  else if(pet_expr_op_get_type(expr) == pet_op_le)
-    stmtOpIds.push_back(string("<="));
-  else if(pet_expr_op_get_type(expr) == pet_op_ge)
-    stmtOpIds.push_back(string(">="));
-
-  else if(pet_expr_op_get_type(expr) == pet_op_lt)
-    stmtOpIds.push_back(string("<"));
-  else if(pet_expr_op_get_type(expr) == pet_op_gt)
-    stmtOpIds.push_back(string(">"));
-
-  else if(pet_expr_op_get_type(expr) == pet_op_minus)
-    stmtOpIds.push_back(string("-"));
-  else if(pet_expr_op_get_type(expr) == pet_op_post_inc)
-    stmtOpIds.push_back(string("++"));
-  else if(pet_expr_op_get_type(expr) == pet_op_post_dec)
-    stmtOpIds.push_back(string("--"));
-  else if(pet_expr_op_get_type(expr) == pet_op_pre_inc)
-    stmtOpIds.push_back(string("++"));
-  else if(pet_expr_op_get_type(expr) == pet_op_pre_dec)
-    stmtOpIds.push_back(string("--"));
-  else 
-    cout << "Operation Id not necessary" << endl;
-}
-
-
 void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set* domainSet){
   if (pet_expr_get_type(expr) == pet_expr_op){
     if (pet_expr_get_type(expr) == pet_op_assume
@@ -577,7 +501,8 @@ void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set
           pet_expr_free(expr);
           return;
         }
-    GatherStmtOpIds(stmtVarIds, expr);
+    stmtVarIds.push_back(pet_op_str(pet_expr_op_get_type(expr)));
+    // GatherStmtOpIds(stmtVarIds, expr);
   }
 
   if (pet_expr_get_type(expr) == pet_expr_access){
