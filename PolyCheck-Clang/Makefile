@@ -43,7 +43,7 @@ OTHER_BINARIES =
 $(BINARY_FILE):	PolyCheck.o
 			$(CXX) -o $(BINARY_FILE) $(LDFLAGS) PolyCheck.o $(OTHER_BINARIES) $(LIBRARY_FLAGS)
 
-PolyCheck.o: PolyCheck.cpp PolyCheck.hpp
+PolyCheck.o: PolyCheck.cpp PolyCheck.hpp islw.hpp util.hpp
 		$(CXX) -c $(CXXFLAGS) PolyCheck.cpp
 
 all		:	$(BINARY_FILE)
