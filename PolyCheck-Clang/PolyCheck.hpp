@@ -36,42 +36,6 @@ CompilerInstance* pTheCompInst_g;
 
 int ParseScop(string fileName, string prolog, string epilog, string outputFileName);
 
-template<typename T>
-std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
-    os << "[";
-    for(auto& x : vec) os << x << ",";
-    os << "]\n";
-    return os;
-}
-
-string GetOutputFileName(string fileName)
-{
-  string outputFileName;
-  
-  int last_index = fileName.length() - 1;
-  int begin_index = 0;
-  
-  for (int i = last_index; i >= 0; i--)
-  {
-    if (fileName[i] == '/')
-    {
-      begin_index = i+1;
-      break;
-    }// if (fileName[i] == '/')
-  }// for (int i = last_index; i >= 0; i--)
-  
-  if (begin_index > last_index)
-  {
-     assert("File name is not correct");
-  }// if (begin_index > last_index)
-  
-  outputFileName = "pc_" + fileName.substr(begin_index, last_index - begin_index + 1);
- 
-  return outputFileName;
-}// string Processor::GetOutputFileName(char *fileName)
-
-
-
 isl_stat print_pw_qpoly(__isl_take isl_pw_qpolynomial *pwqp, void *user) {
     assert(pwqp);
     assert(user);

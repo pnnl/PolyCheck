@@ -67,4 +67,12 @@ std::string join(const std::vector<std::string>& vec, const std::string& sep) {
     return ret;
 }
 
+template<typename T>
+std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
+    os << "[";
+    for(auto& x : vec) os << x << ",";
+    os << "]\n";
+    return os;
+}
+
 #endif // PolyCheck_util_hpp_

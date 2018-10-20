@@ -1063,6 +1063,15 @@ int print_expr(__isl_keep pet_expr *expr, void *user) {
     return 0;
 }
 
+std::string GetOutputFileName(std::string file_name) {
+    size_t pos = file_name.find_last_of("/");
+    if(pos == std::string::npos) {
+        return file_name.insert(0, "pc_");
+    } else {
+        return file_name.insert(pos+1, "pc_");
+    }
+}// string Processor::GetOutputFileName(char *fileName)
+
 
 
 int main(int argc, char* argv[]) {
@@ -1179,7 +1188,7 @@ int main(int argc, char* argv[]) {
     }
     std::cout<<"-------\n";
 
-     ParseScop(target, stmts, prologue, epilogue, GetOutputFileName(filename));
+     ParseScop(target, stmts, prologue, epilogue, GetOutputFileName(target));
      stmts.clear();
      pet_scop_free(scop);
      isl_schedule_free(isched);
