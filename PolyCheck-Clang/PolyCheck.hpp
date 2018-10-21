@@ -230,13 +230,13 @@ class Statement {
             }
         }
         std::vector<std::string> ref_args;
-        for(int r = 0; r < read_refs_.size(); r++) {
-            for(int d = 0; d < array_sizes_[r]; d++) {
+        for(size_t r = 0; r < read_refs_.size(); r++) {
+            for(auto d = 0; d < array_sizes_[r]; d++) {
                 ref_args.push_back(read_ref_dim_string(r, d));
             }
         }
         if(write_ref_) {
-            for(int d = 0; d < write_array_size_; d++) {
+            for(auto d = 0; d < write_array_size_; d++) {
                 ref_args.push_back(write_ref_dim_string(d));
             }
         }
@@ -384,18 +384,18 @@ class Statement {
             str += read_ref_macro_def_string(i);
         }
         for(size_t i = 0; i < read_refs_.size(); i++) {
-            for(size_t j = 0; j < array_sizes_[i]; j++) {
+            for(auto j = 0; j < array_sizes_[i]; j++) {
                 str += read_dim_id_macro_def_string(i, j);
             }
         }
         str += "\n";
-        for(size_t i = 0; i < dim(); i++) {
+        for(auto i = 0; i < dim(); i++) {
             str += sinstance_macro_decl_string(i);
         }
         str += "\n";
         str += sinstance_args_decl_string() + "\n";
         for(size_t i = 0; i < read_refs_.size(); i++) {
-            for(size_t j = 0; j < array_sizes_[i]; j++) {
+            for(auto j = 0; j < array_sizes_[i]; j++) {
                 str += "_diff |= " + read_dim_id_macro_name(i, j) +
                        "(" + sinstance_args_string() + ")" + 
                        " ^ " +
@@ -434,12 +434,12 @@ class Statement {
             str += write_ref_string() + " += 1;\n";
         }
         str += "\n";
-        for(size_t i = 0; i < dim(); i++) {
+        for(auto i = 0; i < dim(); i++) {
             str += sinstance_macro_undef_string(i);
         }
         str += "\n";
         for(size_t i = 0; i < read_refs_.size(); i++) {
-            for(size_t j = 0; j < array_sizes_[i]; j++) {
+            for(auto j = 0; j < array_sizes_[i]; j++) {
                 str += read_dim_id_macro_undef_string(i, j);
             }
         }
@@ -1095,37 +1095,27 @@ public:
           stmtVarIds.push_back(string((b->getOpcodeStr(b->getOpcode())).str()));//operator
           TraverseExprToGetStmtIters (lhs, stmtVecIters, stmtVarIds);
 
+          TheRewriter.InsertText(commentLocation, "//", true, true);
+
           // Fix bug for CompoundAssignmentOp
           if (b->isCompoundAssignmentOp())
           {
-            TheRewriter.InsertText(commentLocation, "//", true, true);
-
             // add stmt var ids for compound assignment operator
             if (stmtVarIds.size() > 0 )
             {
               int len = stmtVarIds.size();
               for (int k=1; k<len; k++)
-              //for (int ca=0; ca<stmtVarIds.size(); ca++)
-              {
-                //cout << "stmtVarIds: " << stmtVarIds[k] << endl;
                 stmtVarIds.push_back(stmtVarIds[k]);
-              }// end for
-            }// end stmtVarIds
-
+            }
             // add stmt vector iters for compound assignment operator
             if (stmtVecIters.size() > 0)
             {
               int len = stmtVecIters.size();
               for (int k=0; k<len; k++)
-              {
-                ////cout << "stmtVarIds: " << stmtVarIds[i] << endl;
                 stmtVecIters.push_back(stmtVecIters[k]);
-              }// end for
             }
-            
-          }//if (b->isCompoundAssignmentOp())
-          // else do nothing
-
+          }
+         
           TraverseExprToGetStmtIters (rhs, stmtVecIters, stmtVarIds);
 
           // Insert location for each statement
@@ -1141,12 +1131,6 @@ public:
           for (auto i=0U; i < stmts.size(); i++)
           {
             vector<string> petStmtVarIds = stmts[i].stmt_varids();
-            // cout << "----------Statement " << i <<  " ----------------\n";
-            // for(auto &x: stmtVarIds) cout << x << ", ";
-            // cout << "\n";
-            // for(auto &x: petStmtVarIds) cout << x << ", ";
-            // cout << "\n----------Statement " << i <<  " ----------------\n";
-
             bool equal = CheckStmtVarIds(stmtVarIds, petStmtVarIds);
             if (equal){
               TheRewriter.InsertText(END1, stmts[i].inline_checks(stmtVecIters), true, true);
