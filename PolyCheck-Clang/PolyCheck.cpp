@@ -128,25 +128,25 @@ int main(int argc, char* argv[]) {
 
     std::cout << "#statements=" << scop->n_stmt << "\n";
 
-    std::vector<std::string> inline_checks;
+    //std::vector<std::string> inline_checks;
     std::vector<Statement> stmts;
     {
         for(int i = 0; i < scop->n_stmt; i++) {
             stmts.push_back(Statement{i, scop});
         }
-        for(const auto& stmt : stmts) {
-            inline_checks.push_back(stmt.inline_checks());
-        }
+        // for(const auto& stmt : stmts) {
+        //     inline_checks.push_back(stmt.inline_checks());
+        // }
     }
 
     const std::string prologue = prolog(R, W) + "\n";
     const std::string epilogue = epilog(W);
     std::cout << "Prolog\n------\n" << prologue << "\n----------\n";
     std::cout << "Epilog\n------\n" << epilogue << "\n----------\n";
-    std::cout << "Inline checks\n------\n";
-    for(size_t i=0; i<inline_checks.size(); i++) {
-        std::cout<<"  Statement "<<i<<"\n  ---\n"<<inline_checks[i]<<"\n";
-    }
+    //std::cout << "Inline checks\n------\n";
+    // for(size_t i=0; i<inline_checks.size(); i++) {
+    //     std::cout<<"  Statement "<<i<<"\n  ---\n"<<inline_checks[i]<<"\n";
+    // }
     std::cout<<"-------\n";
 
     ParseScop(target, stmts, prologue, epilogue, output_file_name(target));

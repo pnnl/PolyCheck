@@ -356,15 +356,18 @@ class Statement {
         return ret;
     }
 
-    std::string inline_checks() const {
+    std::string inline_checks(vector<string> stmtVecIters) const {
         std::string str   = "{\n";
         std::string sname = statement_name();
         assert(read_refs_.size() == array_sizes_.size());
         assert(read_refs_.size() == read_array_names_.size());
+
+        auto si = 0;
+
         if(write_ref_) {
             for(auto j = 0; j < write_array_size_; j++) {
                 str += "int " + write_ref_dim_string(j)+
-                       " = " + "/*to be filled by ajay*/" +
+                       " = " + stmtVecIters[si++] +
                        ";\n";
             }
         }
@@ -373,7 +376,7 @@ class Statement {
                 str += "int " +  read_ref_dim_string(i, j) +
                 //  sname + "__" + std::to_string(i) + "__" +
                 //        std::to_string(j) + 
-                       " = " + "/*to be filled by ajay*/"+";\n";
+                       " = " + stmtVecIters[si++]+";\n";
             }
         }
         str += "\n";
@@ -1132,7 +1135,7 @@ public:
             vector<string> petStmtVarIds = stmts[i].stmt_varids();
             bool equal = CheckStmtVarIds(stmtVarIds, petStmtVarIds);
             if (equal)
-              TheRewriter.InsertText(END1, stmts[i].inline_checks(), true, true);
+              TheRewriter.InsertText(END1, stmts[i].inline_checks(stmtVecIters), true, true);
           } //
 
           TheRewriter.InsertText(END1, "//---end checks---\n", true, true);
