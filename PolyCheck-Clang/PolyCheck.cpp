@@ -91,16 +91,6 @@ std::string epilog(isl_union_map* W) {
     return epilog;
 }
 
-int print_expr(__isl_keep pet_expr *expr, void *user) {
-    std::cout << "+++\n";
-    std::cout<<"NAME="<<islw::to_string(pet_expr_access_get_id(expr))<<"\n";
-    std::cout<<"IDX="<<islw::to_string(pet_expr_access_get_index(expr))<<"\n";
-    //std::cout<<"n_arg="<<islw::to_string(pet_expr_access_get_ref_id(expr))<<"\n";
-    //pet_expr_dump(expr);
-    std::cout << "+++\n";
-    return 0;
-}
-
 std::string output_file_name(std::string file_name) {
     size_t pos = file_name.find_last_of("/");
     if(pos == std::string::npos) {
