@@ -10,3 +10,14 @@ polyopt- generate transformed source
 high,mid,low level AST rewrite mechanism - rewrite.h - can we use ?
 
 SageBuilder - the solid, recommended way
+
+TODO:
+
+- Include version information on the written array reference in computing 
+  statement instance
+
+- Add support when multiple statements in source programmatch a statement in the
+  transformed program
+
+- Add support to properly detect and terminate out of non-terminating 
+  transformed programs (that generate operations to be checked).
