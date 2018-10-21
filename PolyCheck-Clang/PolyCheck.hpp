@@ -81,14 +81,14 @@ void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set
     }
   }else if (pet_expr_get_type(expr) == pet_expr_int){
     isl_val* ival = pet_expr_int_get_val(expr);
-    string int_str = std::to_string(isl_val_sgn(ival));
+    string int_str = std::to_string(stod(std::to_string(isl_val_sgn(ival))));
     islw::destruct(ival); 
     //cout << "integer: " << int_str << endl;
     stmtVarIds.push_back(int_str);
   }else if (pet_expr_get_type(expr) == pet_expr_double){
     const char* double_char = pet_expr_double_get_str(expr); 
-    //cout << "double:" << double_char << endl;
-    if(double_char) stmtVarIds.push_back(double_char);
+    // cout << "pet double:" << double_char  << endl;
+    if(double_char) stmtVarIds.push_back(std::to_string(stod(double_char))); 
   }
 
   for(int i=0; i<pet_expr_get_n_arg(expr); i++) {
@@ -986,7 +986,15 @@ public:
     }// if (expr->getStmtClass() == Stmt::BinaryOperatorClass)
     else if (expr->getStmtClass() == Stmt::IntegerLiteralClass || expr->getStmtClass() == Stmt::FloatingLiteralClass)
     {
-	    // do nothing
+	    clang::LangOptions LangOpts;
+      LangOpts.CPlusPlus = true;
+      clang::PrintingPolicy Policy(LangOpts);
+
+      string varIdStr;
+      llvm::raw_string_ostream varId(varIdStr);
+      expr->printPretty(varId, NULL, Policy);
+      //cout << "var ids: " << varId.str() << endl;
+      varIds.push_back(std::to_string(stod(varId.str())));
     }// else if (expr->getStmtClass() == Stmt::IntegerLiteralClass)
     else if (expr->getStmtClass() == Stmt::ParenExprClass)
     {
@@ -1133,9 +1141,16 @@ public:
           for (auto i=0U; i < stmts.size(); i++)
           {
             vector<string> petStmtVarIds = stmts[i].stmt_varids();
+            // cout << "----------Statement " << i <<  " ----------------\n";
+            // for(auto &x: stmtVarIds) cout << x << ", ";
+            // cout << "\n";
+            // for(auto &x: petStmtVarIds) cout << x << ", ";
+            // cout << "\n----------Statement " << i <<  " ----------------\n";
+
             bool equal = CheckStmtVarIds(stmtVarIds, petStmtVarIds);
-            if (equal)
+            if (equal){
               TheRewriter.InsertText(END1, stmts[i].inline_checks(stmtVecIters), true, true);
+            }
           } //
 
           TheRewriter.InsertText(END1, "//---end checks---\n", true, true);
