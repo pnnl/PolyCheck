@@ -739,7 +739,7 @@ class Statement {
           islw::copy(S), isl_union_map_domain(islw::copy(sinstances))));
         isl_union_map* LT =
         //   isl_union_map_from_map(isl_map_lex_lt(isl_union_set_get_space(T)));
-        isl_union_set_lex_lt_union_set(islw::copy(T), islw::copy(T));
+        isl_union_set_lex_gt_union_set(islw::copy(T), islw::copy(T));
         isl_union_map* TWinv =
           isl_union_map_reverse(islw::umap_compose(Sinv, W));
 
