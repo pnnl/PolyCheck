@@ -36,6 +36,63 @@ std::string array_ref_string_in_c(isl_set* iset) {
     }
 }
 
+class Prolog {
+    public:
+    explicit Prolog() : counter_{0} {}
+    ~Prolog()             = default;
+    Prolog(const Prolog&) = default;
+    Prolog(Prolog&&) = default;
+    Prolog& operator=(const Prolog&) = default;
+    Prolog& operator=(Prolog&&) = default;
+
+    Prolog(isl_union_map* R, isl_union_map* W) 
+    : counter_{0} {
+        isl_union_set* RW =
+          isl_union_set_union(isl_union_map_range(islw::copy(R)),
+                              isl_union_map_range(islw::copy(W)));
+        isl_union_set_foreach_set(RW, fn_prolog_per_set, this);
+        islw::destruct(RW);
+    }
+
+    std::string to_string() const {
+        return "#include <assert.h>\n int _diff = 0;\n{\n" + pre_ + "\n" +
+               stmts_ + "\n" + post_ + "\n}\n";
+    }
+
+    private:
+    // should be a lambda
+    static isl_stat fn_prolog_per_set(isl_set* set, void* user) {
+        assert(user != nullptr);
+        assert(set != nullptr);
+        // std::string& str   = *(std::string*)user;
+        Prolog& prolog            = *(Prolog*)user;
+        std::string array_name{isl_set_get_tuple_name(set)};
+        std::string macro_name{"PC_PR_" + array_name + "_" +
+                               std::to_string(prolog.counter_)};
+        std::string array_ref_str = array_ref_string(set) + ";";
+        std::string macro_ref_string =
+          "PC_PR_" +
+          replace_all(array_ref_string(set), array_name + "(",
+                      array_name + "_" + std::to_string(prolog.counter_)+"(");
+        prolog.pre_ += "#define " + macro_ref_string + "\t" +
+                       array_ref_string_in_c(set) + " = 0\n";
+        prolog.post_ += "#undef " + macro_name + "\n";
+        std::string prolog_str = islw::to_c_string(set);
+        // std::string array_ref_str = array_ref_string(set) + ";";
+        // std::string repl_str      = array_ref_string_in_c(set) + "=0;";
+        prolog.stmts_ += replace_all(prolog_str, array_name, macro_name);
+        islw::destruct(set);
+        prolog.counter_ += 1;
+        return isl_stat_ok;
+    }
+
+    int counter_;
+    std::string pre_;
+    std::string stmts_;
+    std::string post_;
+}; // class Prolog
+
+#if 0
 //should be a lambda
 isl_stat fn_prolog_per_set(isl_set* set, void* user) {
     std::string& str   = *(std::string*)user;
@@ -56,7 +113,12 @@ std::string prolog(isl_union_map* R, isl_union_map* W) {
     islw::destruct(RW);
     return prolog;
 }
+#endif
 
+std::string prolog(isl_union_map* R, isl_union_map* W) {
+    Prolog prolog{R, W};
+    return prolog.to_string();
+}
 class Epilog {
     public:
     explicit Epilog() : counter_{0} {}
@@ -140,7 +202,7 @@ class Epilog {
     std::string macro_defs_;
     std::string macro_undefs_;
     std::string checks_;
-};
+};  // class Epilog
 
 #if 0
 //should be a lambda

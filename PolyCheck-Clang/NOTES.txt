@@ -13,7 +13,7 @@ TODO:
 - Include version information on the written array reference in computing 
   statement instance -- DONE
 
-- Add support when multiple statements in source programmatch a statement in the
+- Add support when multiple statements in source program match a statement in the
   transformed program
 
 - Add support to properly detect and terminate out of non-terminating 
@@ -25,7 +25,8 @@ Not working - do not generate pc_test files:
   - Error: map is not single valued. maynot be convertible to pwaff for dimension 0.
 
 dynprog, reg_detect:
-- Error: generated epilog has invalid syntax
+- Error: generated prolog/epilog has invalid syntax
+-- DONE (both benchmarks pass)
 
 Other errors:
 - cholesky, ludcmp, fdtd-apml - double insert - manually check if code is valid.
