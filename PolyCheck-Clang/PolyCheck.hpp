@@ -317,9 +317,33 @@ class Statement {
                           << i << ". Exiting\n";
                 exit(-1);
             }
-            auto upma =
-              isl_union_pw_multi_aff_from_union_map(isl_union_map_from_map(
-                isl_map_set_tuple_name(islw::copy(r2si), isl_dim_out, "")));
+#if 0
+            auto pre = isl_map_set_tuple_name(islw::copy(r2si), isl_dim_out, "");
+            std::cerr << "&&&&&&&---pre_upw--|" << islw::to_string(pre)
+                      << "|\n";
+            std::cerr << "&&&&&&&---pre_upw_umap--|"
+                      << islw::to_string(
+                           isl_union_map_from_map(islw::copy(pre)))
+                      << "|\n";
+            std::cerr << "&&&&&&&---pre_upw_umap_1--|"
+                      << islw::to_string(isl_union_map_coalesce(
+                           isl_union_map_from_map(islw::copy(pre))))
+                      << "|\n";
+#else
+            //@bug @fixme working around an issue with ISL conversion from
+            //union_map to pw_aff. Error manufests with adi in polybench
+            auto pre =
+              isl_map_set_tuple_name(islw::copy(r2si), isl_dim_out, "");
+            char* cstr = isl_map_to_str(pre);
+            islw::destruct(pre);
+            pre = isl_map_read_from_str(islw::context(domain_), cstr);
+            free(cstr);
+#endif
+            auto upma = isl_union_pw_multi_aff_from_union_map(
+              isl_union_map_from_map(pre));
+            // char *cstr = isl_union_pw_multi_aff_to_str(upma);
+            // std::cerr << "&&&&&&&---upw cstr--|" << cstr << "|\n";
+            // free(cstr);
             std::string tmp_str = islw::to_string(upma);
             std::cerr << "&&&&&&&---upw--|" << tmp_str << "|\n";
             auto pwa =

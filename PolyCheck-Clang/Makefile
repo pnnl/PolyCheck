@@ -3,7 +3,11 @@
 ###########################################################################
 
 CXX = g++
+CC = gcc
 
+# NTL_INSTALL_PATH=/Users/sriram/local/ntl
+# BARVINOK_INSTALL_PATH=/Users/sriram/local/barvinok-0.41
+# LLVM_INSTALL_PATH=/usr/local/opt/llvm/
 NTL_INSTALL_PATH=/opt/libraries/ntl-new
 BARVINOK_INSTALL_PATH=/opt/libraries/barvinok-0.41
 LLVM_INSTALL_PATH=/opt/compilers/llvm/llvm5
@@ -45,6 +49,9 @@ $(BINARY_FILE):	PolyCheck.o
 
 PolyCheck.o: PolyCheck.cpp PolyCheck.hpp islw.hpp util.hpp
 		$(CXX) -c $(CXXFLAGS) PolyCheck.cpp
+
+pw_bug: pw_bug.c
+	$(CC) -I$(GMP_INSTALL_PATH)/include -I$(BARVINOK_INSTALL_PATH)/include -I$(NTL_INSTALL_PATH)/include -o pw_bug pw_bug.c -L$(GMP_INSTALL_PATH)/lib -L$(BARVINOK_INSTALL_PATH)/lib -L$(NTL_INSTALL_PATH)/lib -lbarvinok -lpet -lisl -lntl -lgmp -lpolylibgmp
 
 all		:	$(BINARY_FILE)
 
