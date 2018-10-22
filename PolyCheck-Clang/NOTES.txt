@@ -22,16 +22,13 @@ TODO:
 - Add support to properly detect and terminate out of non-terminating 
   transformed programs (that generate operations to be checked).
 
-Not working - do not generate pc_test files;
-
-- adi.c
-- cholesky.c, ludcmp - double insertions, function call
-- correlation.c, floyd-warshall - sqrt, ternary operator
+Not working - do not generate pc_test files:
+- adi.c - Error: unable to create pw_aff for dimension 1
 - durbin.c - alpha[k] = -sum[k][k] * beta[k]; -> check not inserted, generated ?
-- gramschmidt, dynprog, reg_detect,symm,trmm:
+- gramschmidt, dynprog, reg_detect, symm:
   - Error: map is not single valued. maynot be convertible to pwaff for dimension 0.
 
-Minor:
+Other errors:
+- cholesky.c, ludcmp - double insertions, function call
+- correlation.c, floyd-warshall - sqrt, ternary operator
 
-fdtd-2d, seidel-2d
-Commenting stmt line does not work if stmt spans across multiple lines - block comment.

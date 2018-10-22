@@ -1086,16 +1086,10 @@ public:
         // if true perform insertion, else do nothing
         if ( lhsArray || rhsArray )
         {
-          // comment out the orginal stmt
-          SourceLocation commentLocation = b->getLocStart();
-	        // TheRewriter.InsertText(commentLocation, "{\n//", true, true);
-
           vector<string> stmtVecIters;        // collect stmt index
           vector<string> stmtVarIds;          // collect stmt var ids
           stmtVarIds.push_back(string((b->getOpcodeStr(b->getOpcode())).str()));//operator
           TraverseExprToGetStmtIters (lhs, stmtVecIters, stmtVarIds);
-
-          TheRewriter.InsertText(commentLocation, "//", true, true);
 
           // Fix bug for CompoundAssignmentOp
           if (b->isCompoundAssignmentOp())
@@ -1118,6 +1112,10 @@ public:
          
           TraverseExprToGetStmtIters (rhs, stmtVecIters, stmtVarIds);
 
+          // comment the orginal stmt
+          SourceLocation commentLocation = b->getLocStart();
+          TheRewriter.InsertText(commentLocation, "/* ", true, true);
+
           // Insert location for each statement
           SourceLocation END = b->getLocEnd();
 	        int offset = Lexer::MeasureTokenLength(END,
@@ -1125,7 +1123,7 @@ public:
 	                     pTheCompInst_g->getLangOpts()) + 1;
 	        SourceLocation END1 = END.getLocWithOffset(offset);
 
-          TheRewriter.InsertText(END1, "\n//---begin checks---\n", true, true);
+          TheRewriter.InsertText(END1, " */ \n//---begin checks---\n", true, true);
           
           // iterate all stmts to find the right one
           for (auto i=0U; i < stmts.size(); i++)
