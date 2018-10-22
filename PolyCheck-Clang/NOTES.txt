@@ -1,11 +1,8 @@
 clang is used by pet to generate isl info 
 
-rose compiler to give isl info for pet
-
-polyopt - extract scop and give isl info
+ROSE: polyopt - extract scop and give isl info
 
 polyopt- generate transformed source
-
 
 high,mid,low level AST rewrite mechanism - rewrite.h - can we use ?
 
@@ -23,12 +20,13 @@ TODO:
   transformed programs (that generate operations to be checked).
 
 Not working - do not generate pc_test files:
-- adi.c - Error: unable to create pw_aff for dimension 1
-- durbin.c - alpha[k] = -sum[k][k] * beta[k]; -> check not inserted, generated ?
+- adi - Error: unable to create pw_aff for dimension 1
 - gramschmidt, dynprog, reg_detect, symm:
   - Error: map is not single valued. maynot be convertible to pwaff for dimension 0.
 
 Other errors:
-- cholesky.c, ludcmp - double insertions, function call
-- correlation.c, floyd-warshall - sqrt, ternary operator
+- cholesky, ludcmp - double insert - manually check if code is valid ?
+- correlation: Is the following handled ?
+  #define sqrt_of_array_cell(x,j) sqrt(x[j])
+  stddev[j] = sqrt_of_array_cell(stddev, j);
 

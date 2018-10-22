@@ -948,7 +948,19 @@ public:
     {
 	    BinaryOperator* b = cast<BinaryOperator>(expr);
 	    return ( TraverseExprToCheckArray (b->getLHS()) || TraverseExprToCheckArray (b->getRHS()) );
-    }// if (expr->getStmtClass() == Stmt::BinaryOperatorClass)
+    }
+    else if (expr->getStmtClass() == Stmt::UnaryOperatorClass)
+    {
+	    UnaryOperator* u = cast<UnaryOperator>(expr);
+	    return ( TraverseExprToCheckArray (u->getSubExpr()) );
+    }
+    else if (expr->getStmtClass() == Stmt::ConditionalOperatorClass)
+    {
+	    ConditionalOperator* c = cast<ConditionalOperator>(expr);
+	    return ( TraverseExprToCheckArray (c->getCond()) ||
+              TraverseExprToCheckArray (c->getTrueExpr()) ||
+              TraverseExprToCheckArray (c->getFalseExpr()) );
+    }
     else if (expr->getStmtClass() == Stmt::IntegerLiteralClass || expr->getStmtClass() == Stmt::FloatingLiteralClass)
     {
 	    // do nothing
@@ -983,7 +995,27 @@ public:
       varIds.push_back(string((b->getOpcodeStr(b->getOpcode())).str()));//operator
 	    TraverseExprToGetStmtIters (b->getLHS(), vecIters, varIds);
 	    TraverseExprToGetStmtIters (b->getRHS(), vecIters, varIds);
-    }// if (expr->getStmtClass() == Stmt::BinaryOperatorClass)
+    }
+    else if (expr->getStmtClass() == Stmt::UnaryOperatorClass)
+    {
+	    UnaryOperator* u = cast<UnaryOperator>(expr);
+      varIds.push_back(string((u->getOpcodeStr(u->getOpcode())).str()));//operator
+	    TraverseExprToGetStmtIters (u->getSubExpr(), vecIters, varIds);
+    }
+    else if (expr->getStmtClass() == Stmt::CallExprClass)
+    {
+	    CallExpr* c = cast<CallExpr>(expr);
+      for(auto x = 0U; x < c->getNumArgs(); x++)
+        TraverseExprToGetStmtIters (c->getArg(x), vecIters, varIds);
+    }
+        else if (expr->getStmtClass() == Stmt::ConditionalOperatorClass)
+    {
+	    ConditionalOperator* c = cast<ConditionalOperator>(expr);
+      varIds.push_back(string("?:"));
+      TraverseExprToGetStmtIters (c->getCond(), vecIters, varIds);
+      TraverseExprToGetStmtIters (c->getTrueExpr(), vecIters, varIds);
+      TraverseExprToGetStmtIters (c->getFalseExpr(), vecIters, varIds);
+    }
     else if (expr->getStmtClass() == Stmt::IntegerLiteralClass || expr->getStmtClass() == Stmt::FloatingLiteralClass)
     {
 	    clang::LangOptions LangOpts;
