@@ -100,7 +100,7 @@ void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set
 
 class Statement {
     public:
-    Statement() : stmt_id_{-1}, domain_{nullptr}, write_ref_{nullptr} {}
+    Statement() : stmt_id_{-1}, domain_{nullptr}, write_ref_{nullptr}, write_ref_card_{nullptr} {}
 
     Statement(const Statement& stmt) : stmt_id_{stmt.stmt_id_} {
         domain_    = islw::copy(stmt.domain_);
@@ -111,6 +111,7 @@ class Statement {
         for(const auto& rrc : stmt.read_ref_cards_) {
             read_ref_cards_.push_back(islw::copy(rrc));
         }
+        write_ref_card_ = islw::copy(stmt.write_ref_card_);
         // read_ref_macro_names_ = stmt.read_ref_macro_names_;
         read_ref_macro_args_ = stmt.read_ref_macro_args_;
         read_ref_macro_exprs_ = stmt.read_ref_macro_exprs_;
@@ -193,6 +194,7 @@ class Statement {
             islw::destruct(rrc);
         }
         read_ref_cards_.clear();
+        islw::destruct(write_ref_card_);
         for(auto &rdm: read_dim_maps_) {
           for(auto mp: rdm) {
             islw::destruct(mp);
@@ -728,6 +730,7 @@ class Statement {
      * 
      * read_cards_[i] = card S . (((S^-1) . read_refs_[i] .(TW^-1)) * LT )
      * 
+     * write_card_ = card S . (((S^-1) . write_ref_ .(TW^-1)) * LT )
      */
     void gather_card(isl_union_map* S, isl_union_map* R, isl_union_map* W) {
         //LT = T << T
@@ -780,6 +783,17 @@ class Statement {
                       islw::destruct(pwqp);
             // std::cout<<islw::to_c_string(isl_union_pw_qpolynomial_to_polynomial()
             // read_ref_cards_.back())<<"\n------\n";
+            islw::destruct(S_to_prevW);
+            islw::destruct(T_to_prevW);
+        }
+        if(write_ref_) {
+            isl_union_map* wr_umap =
+              isl_union_map_from_map(islw::copy(write_ref_));
+            isl_union_map* T_to_prevW = isl_union_map_intersect(
+              islw::copy(LT), islw::umap_compose(Sinv, wr_umap, TWinv));
+            islw::destruct(wr_umap);
+            isl_union_map* S_to_prevW = islw::umap_compose(S, T_to_prevW);
+            write_ref_card_ = isl_union_map_card(islw::copy(S_to_prevW));
             islw::destruct(S_to_prevW);
             islw::destruct(T_to_prevW);
         }
@@ -866,6 +880,7 @@ class Statement {
     std::vector<std::string> read_array_names_;
     std::vector<int> array_sizes_; //dimensionality of the i-th read array reference 
     std::vector<isl_union_pw_qpolynomial*> read_ref_cards_;
+    isl_union_pw_qpolynomial* write_ref_card_;
     // std::vector<std::string> read_ref_macro_names_;
     std::vector<std::string> read_ref_macro_args_;
     std::vector<std::string> read_ref_macro_exprs_;
