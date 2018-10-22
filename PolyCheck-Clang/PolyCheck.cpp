@@ -57,15 +57,132 @@ std::string prolog(isl_union_map* R, isl_union_map* W) {
     return prolog;
 }
 
-//should be a lambda
-isl_stat epilog_per_poly_piece(isl_set* set, isl_qpolynomial* poly, void *user) {
-  std::string& str = *(std::string*) user;
-  std::string set_code = islw::to_c_string(set);
-  std::string poly_code = islw::to_c_string(poly);
-  std::string array_ref_str = array_ref_string(set) + ";";
-  std::string repl_str      = "_diff |= ((int)" + array_ref_string_in_c(set) +
+class Epilog {
+    public:
+    explicit Epilog() : counter_{0} {}
+    ~Epilog()             = default;
+    Epilog(const Epilog&) = default;
+    Epilog(Epilog&&) = default;
+    Epilog& operator=(const Epilog&) = default;
+    Epilog& operator=(Epilog&&) = default;
+
+    Epilog(isl_union_map* W) 
+    : counter_{0} {
+        isl_union_pw_qpolynomial* WC =
+          isl_union_map_card(isl_union_map_reverse(islw::copy(W)));
+        isl_union_pw_qpolynomial_foreach_pw_qpolynomial(
+          WC, Epilog::epilog_per_poly, this);
+        islw::destruct(WC);
+    }
+
+    std::string to_string() const {
+        return "{\n" + macro_defs_ + "\n" + checks_ + "\n" + macro_undefs_ +
+             "\n assert(_diff == 0); \n"+
+               "}\n";
+    }
+
+    private:
+    // should be a lambda
+    static isl_stat epilog_per_poly(isl_pw_qpolynomial* pwqp, void* user) {
+        isl_pw_qpolynomial_foreach_piece(pwqp, Epilog::epilog_per_poly_piece, user);
+        islw::destruct(pwqp);
+        return isl_stat_ok;
+    }
+
+    // should be a lambda
+    static isl_stat epilog_per_poly_piece(isl_set* set, isl_qpolynomial* poly,
+                                   void* user) {
+        // std::string& str = *(std::string*) user;
+        assert(user != nullptr);
+        Epilog& ep           = *(Epilog*)user;
+        std::string set_code      = islw::to_c_string(set);
+        std::string poly_code     = islw::to_c_string(poly);
+        std::string array_ref_str = array_ref_string(set);
+#if 0
+  std::string repl_str      = "_diff |= ((int) " + array_ref_string_in_c(set) +
                          ") ^ (" + poly_code + ");";
   str += replace_all(set_code, array_ref_str, repl_str);
+#else
+        //   std::string repl_str      = "_diff |= ((int) pc_ep_" +
+        //   array_ref_string(set) +
+        //                          ") ^ (" + poly_code + ");";
+        //   str += replace_all(set_code, array_ref_str, repl_str);
+        std::string array_name{isl_set_get_tuple_name(set)};
+        std::string macro_name =
+          "PC_EP_" + array_name + "_" + std::to_string(ep.counter_);
+        std::string macro_ref_str =
+          replace_all(array_ref_str, array_name + "(", macro_name + "(");
+        std::string def_str =
+          "#define " + macro_ref_str + "\t" + "((int)" +
+          replace_all(
+            replace_all(replace_all(replace_all(array_ref_str, array_name + "(",
+                                                array_name + "["),
+                                    ")", "]"),
+                        ",", "]["),
+            "[]", "") +
+          ")\n";
+        std::string undef_str = "#undef " + macro_name + "\n";
+        std::string check_str = "_diff |= (" + poly_code + ") ^ " + macro_name;
+        std::string repl_name = check_str;
+        ep.macro_defs_ += def_str;
+        ep.macro_undefs_ += undef_str;
+        ep.checks_ += replace_all(set_code, array_name + "(", repl_name + "(");
+        ep.counter_ += 1;
+        //   std::cerr<<"$$$$$$$$$$ set before:"<<set_code<<"\n";
+        //   std::cerr<<"$$$$$$$$$$ cum. set code after:"<<str<<"\n";
+#endif
+        islw::destruct(set);
+        islw::destruct(poly);
+        return isl_stat_ok;
+    }
+
+    int counter_;
+    std::string macro_defs_;
+    std::string macro_undefs_;
+    std::string checks_;
+};
+
+#if 0
+//should be a lambda
+isl_stat epilog_per_poly_piece(isl_set* set, isl_qpolynomial* poly, void *user) {
+  //std::string& str = *(std::string*) user;
+  assert(user != nullptr);
+  EpilogState& es = *(EpilogState*)user;
+  std::string set_code = islw::to_c_string(set);
+  std::string poly_code = islw::to_c_string(poly);
+  std::string array_ref_str = array_ref_string(set);
+  #if 0
+  std::string repl_str      = "_diff |= ((int) " + array_ref_string_in_c(set) +
+                         ") ^ (" + poly_code + ");";
+  str += replace_all(set_code, array_ref_str, repl_str);
+  #else
+//   std::string repl_str      = "_diff |= ((int) pc_ep_" + array_ref_string(set) +
+//                          ") ^ (" + poly_code + ");";
+//   str += replace_all(set_code, array_ref_str, repl_str);
+  std::string array_name{isl_set_get_tuple_name(set)};
+  std::string macro_name =
+    "PC_EP_" + array_name + "_" + std::to_string(es.counter_);
+  std::string macro_ref_str =
+    replace_all(array_ref_str, array_name + "(", macro_name + "(");
+  std::string def_str =
+    "#define " + macro_ref_str + "\t" + "((int)" +
+    replace_all(
+      replace_all(replace_all(replace_all(array_ref_str, array_name + "(",
+                                          array_name + "["),
+                              ")", "]"),
+                  ",", "]["),
+      "[]", "") +
+    ")\n";
+  std::string undef_str = "#undef " + macro_name + "\n";
+  std::string check_str = "_diff |= ("+poly_code+") ^ "+macro_name;
+  std::string repl_name = check_str;
+  es.macro_defs_ += def_str;
+  es.macro_undefs_ += undef_str;
+  es.checks_ += replace_all(set_code, array_name+"(", repl_name+"(");
+  es.counter_ += 1;
+//   std::cerr<<"$$$$$$$$$$ set before:"<<set_code<<"\n";
+//   std::cerr<<"$$$$$$$$$$ cum. set code after:"<<str<<"\n";
+  #endif
   islw::destruct(set);
   islw::destruct(poly);
   return isl_stat_ok;
@@ -82,13 +199,20 @@ std::string epilog(isl_union_map* W) {
     std::string epilog;
     isl_union_pw_qpolynomial* WC =
       isl_union_map_card(isl_union_map_reverse(islw::copy(W)));
-    epilog = "{\n";
+    // epilog = "{\n";
+    EpilogState es;
     isl_union_pw_qpolynomial_foreach_pw_qpolynomial(WC, epilog_per_poly,
-                                                    &epilog);
-    epilog += "\n assert(_diff == 0); \n";
-    epilog += "\n}\n";
+                                                    &es);
+    // epilog += "\n assert(_diff == 0); \n";
+    // epilog += "\n}\n";
     islw::destruct(WC);
-    return epilog;
+    return es.to_string();
+}
+#endif
+
+std::string epilog(isl_union_map* W) {
+    Epilog epilog{W};
+    return epilog.to_string();
 }
 
 std::string output_file_name(std::string file_name) {
