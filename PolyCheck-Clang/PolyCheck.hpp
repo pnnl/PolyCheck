@@ -270,6 +270,29 @@ class Statement {
             }
             islw::destruct(upw);
         }
+        // add write version number expressions if it is affine
+        if(write_ref_card_) {
+            isl_union_pw_qpolynomial* upw = islw::copy(write_ref_card_);
+            std::string tmp_str          = islw::to_string(upw);
+            tmp_str = replace_all(tmp_str, "-> ", "-> [");
+            tmp_str = replace_all(tmp_str, ":", "]:");
+            tmp_str = replace_all(tmp_str, "-> [{", "-> {");
+                std::cerr << "^^^^^^^^^TRYING WVERSION STRING for string="
+                          << tmp_str << "\n";
+            isl_map* imap =
+              isl_map_read_from_str(islw::context(upw), tmp_str.c_str());
+            if(imap != nullptr) {
+                // imap = isl_map_set_tuple_name(imap, isl_dim_in, "");
+                std::cerr << "current stmt_to_refs="
+                          << islw::to_string(stmt_to_refs) << "\n";
+                stmt_to_refs = isl_map_flat_range_product(stmt_to_refs, imap);
+                ref_args.push_back(write_ref_src_string());
+            } else {
+                std::cerr << "^^^^^^^^^SKIPPING WVERSION STRING for string="
+                          << tmp_str << "\n";
+            }
+            islw::destruct(upw);            
+        }
         //@todo @fixme Also add write version numbers for completeness
         isl_map* refs_to_stmt = isl_map_reverse(stmt_to_refs);
         // if(write_ref_) {
@@ -877,6 +900,7 @@ class Statement {
     int stmt_id_;
     isl_set* domain_;
     std::vector<isl_map*> read_refs_;
+    isl_map* write_ref_;
     std::vector<std::string> read_array_names_;
     std::vector<int> array_sizes_; //dimensionality of the i-th read array reference 
     std::vector<isl_union_pw_qpolynomial*> read_ref_cards_;
@@ -885,7 +909,6 @@ class Statement {
     std::vector<std::string> read_ref_macro_args_;
     std::vector<std::string> read_ref_macro_exprs_;
     //std::vector<std::string> inline_checks_;
-    isl_map* write_ref_;
     std::string write_array_name_;
     int write_array_size_;
     std::vector<string> stmt_varids_;
