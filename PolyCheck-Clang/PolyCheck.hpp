@@ -48,11 +48,11 @@ isl_stat print_pw_qpoly(__isl_take isl_pw_qpolynomial *pwqp, void *user) {
 
 void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set* domainSet){
   if (pet_expr_get_type(expr) == pet_expr_op){
-    if (pet_expr_get_type(expr) == pet_op_assume
-        || pet_expr_get_type(expr) == pet_op_kill 
-        || pet_expr_get_type(expr) == pet_op_assume 
-        || pet_expr_get_type(expr) == pet_op_cond
-        || pet_expr_get_type(expr) == pet_op_last
+    if (pet_expr_op_get_type(expr) == pet_op_assume
+        || pet_expr_op_get_type(expr) == pet_op_kill 
+        || pet_expr_op_get_type(expr) == pet_op_assume 
+        || pet_expr_op_get_type(expr) == pet_op_cond
+        || pet_expr_op_get_type(expr) == pet_op_last
         ) {
           pet_expr_free(expr);
           return;
