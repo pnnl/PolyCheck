@@ -5,8 +5,6 @@
 #include <isl/map.h>
 
 int main() {
-    //const char* str_bug = "[tsteps, n] -> { [i0, i1, i0, -1 + i1, i0, i1, i0, -1 + i1, i0, i1, i10, 1 + i10, i10] -> [i2 = i1] : 0 <= i0 < n and 2 <= i1 <= 1023 and i1 < n and 0 <i10 < tsteps }";
-    //const char* str_bug = "[tsteps, n] -> { [i0, i1, i0, -1 + i1] -> [i2 = i1] : 0 <= i0 < n and 2 <= i1 <= 1023 and i1 < n }";
     const char* str_bug = "[tsteps, n] -> { [i0, i1, i0] -> [i2 = i1] : 0 <= i0 < n and 2 <= i1 <= 1023 and i1 < n }";
 
     isl_ctx* ctx;
