@@ -165,9 +165,36 @@ class Epilog {
         }
         assert(user != nullptr);
         Epilog& ep           = *(Epilog*)user;
+
+        for(unsigned i=0; i<isl_set_dim(set, isl_dim_set); i++) {
+            set = isl_set_set_dim_name(set, isl_dim_set, i, ("_pc_i"+std::to_string(i)).c_str());
+        }
+        for(unsigned i=0; i<isl_qpolynomial_dim(poly, isl_dim_in); i++) {
+            poly = isl_qpolynomial_set_dim_name(poly, isl_dim_in, i, ("_pc_i"+std::to_string(i)).c_str());
+        }
+
         std::string set_code      = islw::to_c_string(set);
         std::string poly_code     = islw::to_c_string(poly);
         std::string array_ref_str = array_ref_string(set);
+
+        //std::cerr<<"========== array_ref_str:"<<array_ref_str<<"\n";
+        std::cerr<<"========== set_code:"<<islw::to_string(set)<<"\n";
+        std::cerr<<"========== poly_code:"<<islw::to_string(poly)<<"\n";
+        std::cerr<<"======== #define POLY("<<isl_qpolynomial_dim(poly,isl_dim_in)<<",";
+        for(unsigned i=0; i<isl_set_dim(set, isl_dim_set); i++) {
+            assert(isl_set_has_dim_name(set, isl_dim_set, i) == isl_bool_true);
+            assert(isl_set_has_dim_id(set,isl_dim_set, i) == isl_bool_true);
+
+            const char *str =isl_set_get_dim_name(set, isl_dim_set, i);
+            if(str) {
+                std::cerr<<str<<",";
+            } else {
+                std::cerr<<"_,";
+            }
+        }
+        std::cerr<<") ("<<poly_code<<")\n";
+        std::cerr<<"========== set_c_code:"<<islw::to_c_string(set)<<"\n";
+        std::cerr<<"========== poly_c_code:"<<islw::to_c_string(poly)<<"\n";
 
         // std::cerr<<"========== set_code:"<<islw::to_string(set)<<"\n";
         // std::cerr<<"========== poly_code:"<<islw::to_string(poly)<<"\n";
