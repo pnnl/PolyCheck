@@ -1187,10 +1187,16 @@ public:
           TheRewriter.InsertText(commentLocation, "/* ", true, true);
 
           // Insert location for each statement
+          SourceManager &src_mgr = pTheCompInst_g->getSourceManager();
+          LangOptions &clangopts = pTheCompInst_g->getLangOpts();
           SourceLocation END = b->getLocEnd();
+          if(src_mgr.isMacroBodyExpansion(END)){
+             auto csr = src_mgr.getExpansionRange(END);
+             END = csr.second;
+          }
+
 	        int offset = Lexer::MeasureTokenLength(END,
-	                     pTheCompInst_g->getSourceManager(),
-	                     pTheCompInst_g->getLangOpts()) + 1;
+	                     src_mgr, clangopts) + 1;
 	        SourceLocation END1 = END.getLocWithOffset(offset);
 
           TheRewriter.InsertText(END1, " */ \n//---begin checks---\n", true, true);
@@ -1198,7 +1204,7 @@ public:
           // iterate all stmts to find the right one
           for (auto i=0U; i < stmts.size(); i++)
           {
-            vector<string> petStmtVarIds = stmts[i].stmt_varids();
+            vector<string> petStmtVarIds = stmts[i].stmt_varids();   
             bool equal = CheckStmtVarIds(stmtVarIds, petStmtVarIds);
             if (equal){
               TheRewriter.InsertText(END1, stmts[i].inline_checks(stmtVecIters), true, true);
