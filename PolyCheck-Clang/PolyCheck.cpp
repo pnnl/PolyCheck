@@ -155,11 +155,24 @@ class Epilog {
     static isl_stat epilog_per_poly_piece(isl_set* set, isl_qpolynomial* poly,
                                    void* user) {
         // std::string& str = *(std::string*) user;
+        assert(set);
+        assert(poly);
+        assert(isl_set_dim(set) == isl_qpolynomial_dim(poly));
+        for(unsigned i = 0; i < isl_set_dim(set, isl_dim_set); i++) {
+            assert(isl_set_get_dim_name(set, isl_dim_set, i) != nullptr);
+            poly = isl_qpolynomial_set_dim_name(
+              poly, isl_dim_in, i, isl_set_get_dim_name(set, isl_dim_set, i));
+        }
         assert(user != nullptr);
         Epilog& ep           = *(Epilog*)user;
         std::string set_code      = islw::to_c_string(set);
         std::string poly_code     = islw::to_c_string(poly);
         std::string array_ref_str = array_ref_string(set);
+
+        // std::cerr<<"========== set_code:"<<islw::to_string(set)<<"\n";
+        // std::cerr<<"========== poly_code:"<<islw::to_string(poly)<<"\n";
+        // std::cerr<<"========== set_c_code:"<<islw::to_c_string(set)<<"\n";
+        // std::cerr<<"========== poly_c_code:"<<islw::to_c_string(poly)<<"\n";
 #if 0
   std::string repl_str      = "_diff |= ((int) " + array_ref_string_in_c(set) +
                          ") ^ (" + poly_code + ");";

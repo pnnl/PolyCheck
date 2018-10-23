@@ -13,11 +13,20 @@ TODO:
 - Include version information on the written array reference in computing 
   statement instance -- DONE
 
+- Check write version numbers in inline checks as well
+
 - Add support when multiple statements in source program match a statement in the
   transformed program
 
 - Add support to properly detect and terminate out of non-terminating 
   transformed programs (that generate operations to be checked).
+
+- Support for kills to handle intermediate variables (to some extent) 
+(needed for cholesky, lu, gramschmidt, symm)
+
+- Ensure variables in polynomial match the loop variables (shows up in epilog of
+ x-eliminated cholseky). Need to use preprocessor macros rather than inlining 
+ the polynomial expression.
 
 Not working - do not generate pc_test files:
 - adi - Error: unable to create pw_aff for dimension 1
