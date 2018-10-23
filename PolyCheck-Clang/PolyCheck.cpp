@@ -64,7 +64,7 @@ isl_stat epilog_per_poly_piece(isl_set* set, isl_qpolynomial* poly, void *user) 
   std::string poly_code = islw::to_c_string(poly);
   std::string array_ref_str = array_ref_string(set) + ";";
   std::string repl_str      = "_diff |= ((int)" + array_ref_string_in_c(set) +
-                         ") ^ " + poly_code + ";";
+                         ") ^ (" + poly_code + ");";
   str += replace_all(set_code, array_ref_str, repl_str);
   islw::destruct(set);
   islw::destruct(poly);
