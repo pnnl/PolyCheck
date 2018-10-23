@@ -21,6 +21,7 @@ TODO:
 
 Not working - do not generate pc_test files:
 - adi - Error: unable to create pw_aff for dimension 1
+  -- This seems an ISL bug. Have a minimal test case. Need to Send to Sven.
 - gramschmidt, symm:
   - Error: map is not single valued. maynot be convertible to pwaff for dimension 0.
 
