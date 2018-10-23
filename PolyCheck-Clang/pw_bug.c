@@ -5,7 +5,7 @@
 #include <isl/map.h>
 
 int main() {
-    const char* str_bug = "[tsteps, n] -> { [i0, i1, i0] -> [i2 = i1] : 0 <= i0 < n and 2 <= i1 <= 1023 and i1 < n }";
+    const char* str_bug = "{ [i0, i1, i0] -> [i2 = i1] : 0 <= i0 < 10 and 0 <= i1 <= 10}";
 
     isl_ctx* ctx;
     isl_union_map *umap;
@@ -21,6 +21,11 @@ int main() {
     pwma1_str = isl_union_pw_multi_aff_to_str(pwma1);
     assert(pwma1_str != NULL); //passes but the string seems invalid
     printf("PWMA1:%s\n", pwma1_str);
+    /*above printf outputs (with i2 in a constraint but not in the relation):
+
+    PWMA1:{ [i0, i1, i2'] -> [(i1)] : i2 = i0 and 0 <= i0 <= 9 and 0 <= i1 <= 10 }
+
+    */
 
     pwma2 = isl_union_pw_multi_aff_read_from_str(ctx, pwma1_str); //fails
     assert(pwma2 != NULL); //fails because pwma1_str is invalid
