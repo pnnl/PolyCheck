@@ -51,7 +51,7 @@ void GatherStmtVarIds(vector<string>& stmtVarIds, struct pet_expr* expr, isl_set
     if (pet_expr_op_get_type(expr) == pet_op_assume
         || pet_expr_op_get_type(expr) == pet_op_kill 
         || pet_expr_op_get_type(expr) == pet_op_assume 
-        || pet_expr_op_get_type(expr) == pet_op_cond
+        //|| pet_expr_op_get_type(expr) == pet_op_cond
         || pet_expr_op_get_type(expr) == pet_op_last
         ) {
           pet_expr_free(expr);

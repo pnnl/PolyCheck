@@ -29,7 +29,5 @@ dynprog, reg_detect:
 
 Other errors:
 - cholesky, ludcmp, fdtd-apml - double insert - manually check if code is valid.
-- correlation: Handle cases like:
-  #define sqrt_of_array_cell(x,j) sqrt(x[j])
-  stddev[j] = sqrt_of_array_cell(stddev, j);
+
 
