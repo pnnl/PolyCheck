@@ -5,12 +5,12 @@
 CXX = g++
 CC = gcc
 
-# NTL_INSTALL_PATH=/Users/sriram/local/ntl
-# BARVINOK_INSTALL_PATH=/Users/sriram/local/barvinok-0.41
-# LLVM_INSTALL_PATH=/usr/local/opt/llvm/
-NTL_INSTALL_PATH=/opt/libraries/ntl-new
-BARVINOK_INSTALL_PATH=/opt/libraries/barvinok-0.41
-LLVM_INSTALL_PATH=/opt/compilers/llvm/llvm5
+NTL_INSTALL_PATH=/Users/sriram/local/ntl
+BARVINOK_INSTALL_PATH=/Users/sriram/local/barvinok-0.41
+LLVM_INSTALL_PATH=/usr/local/opt/llvm/
+# NTL_INSTALL_PATH=/opt/libraries/ntl-new
+# BARVINOK_INSTALL_PATH=/opt/libraries/barvinok-0.41
+# LLVM_INSTALL_PATH=/opt/compilers/llvm/llvm5
 GMP_INSTALL_PATH=  #Optional if in standard library path
 
 ###########################################################################

@@ -38,25 +38,23 @@ std::string array_ref_string_in_c(isl_set* iset) {
 
 class Prolog {
     public:
-    explicit Prolog() : counter_{0} {}
+    explicit Prolog() {}
     ~Prolog()             = default;
     Prolog(const Prolog&) = default;
     Prolog(Prolog&&) = default;
     Prolog& operator=(const Prolog&) = default;
     Prolog& operator=(Prolog&&) = default;
 
-    Prolog(isl_union_map* R, isl_union_map* W) 
-    : counter_{0} {
+    Prolog(isl_union_map* R, isl_union_map* W) {
         isl_union_set* RW =
           isl_union_set_union(isl_union_map_range(islw::copy(R)),
                               isl_union_map_range(islw::copy(W)));
-        isl_union_set_foreach_set(RW, fn_prolog_per_set, this);
+        isl_union_set_foreach_set(RW, fn_prolog_per_set, &this->str_);
         islw::destruct(RW);
     }
 
     std::string to_string() const {
-        return "#include <assert.h>\n int _diff = 0;\n{\n" + pre_ + "\n" +
-               stmts_ + "\n" + post_ + "\n}\n";
+        return "#include <assert.h>\n int _diff = 0;\n{\n" + str_ + "\n}\n";
     }
 
     private:
@@ -64,30 +62,36 @@ class Prolog {
     static isl_stat fn_prolog_per_set(isl_set* set, void* user) {
         assert(user != nullptr);
         assert(set != nullptr);
-        // std::string& str   = *(std::string*)user;
-        Prolog& prolog            = *(Prolog*)user;
+        std::string& prolog = *(std::string*)user;
+        const unsigned ndim = isl_set_dim(set, isl_dim_set);
+        for(unsigned i = 0; i < ndim; i++) {
+            set = isl_set_set_dim_name(set, isl_dim_set, i,
+                                       ("_i" + std::to_string(i)).c_str());
+        }
+        std::string set_code      = islw::to_c_string(set);
+        std::vector<std::string> args_vec;
+        for(unsigned i=0; i<isl_set_dim(set, isl_dim_set); i++) {
+            assert(isl_set_has_dim_name(set, isl_dim_set, i) == isl_bool_true);
+            assert(isl_set_has_dim_id(set,isl_dim_set, i) == isl_bool_true);
+            const char *str =isl_set_get_dim_name(set, isl_dim_set, i);
+            assert(str);
+            args_vec.push_back(str);
+        }
         std::string array_name{isl_set_get_tuple_name(set)};
-        std::string macro_name{"PC_PR_" + array_name + "_" +
-                               std::to_string(prolog.counter_)};
-        std::string array_ref_str = array_ref_string(set) + ";";
-        std::string macro_ref_string =
-          "PC_PR_" +
-          replace_all(array_ref_string(set), array_name + "(",
-                      array_name + "_" + std::to_string(prolog.counter_)+"(");
-        prolog.pre_ += "#define " + macro_ref_string + "\t" +
-                       array_ref_string_in_c(set) + " = 0\n";
-        prolog.post_ += "#undef " + macro_name + "\n";
-        std::string prolog_str = islw::to_c_string(set);
-        prolog.stmts_ += replace_all(prolog_str, array_name, macro_name);
+        std::string array_ref = array_name;;
+        if(ndim>0) {
+            array_ref += "[" + join(args_vec, "][") + "]";
+        }
+        std::string pre =
+          "#define PC_PR(" + join(args_vec, ",") + ")\t" + array_ref + " = 0\n";
+        std::string post = "#undef PC_PR\n";
+        prolog +=
+          pre + replace_all(set_code, array_name + "(", "PC_PR(") + post;
         islw::destruct(set);
-        prolog.counter_ += 1;
         return isl_stat_ok;
     }
 
-    int counter_;
-    std::string pre_;
-    std::string stmts_;
-    std::string post_;
+    std::string str_;
 }; // class Prolog
 
 std::string prolog(isl_union_map* R, isl_union_map* W) {
@@ -107,7 +111,7 @@ class Epilog {
         isl_union_pw_qpolynomial* WC =
           isl_union_map_card(isl_union_map_reverse(islw::copy(W)));
         isl_union_pw_qpolynomial_foreach_pw_qpolynomial(
-          WC, Epilog::epilog_per_poly, this);
+          WC, Epilog::epilog_per_poly, &this->str_);
         islw::destruct(WC);
     }
 
