@@ -34,11 +34,7 @@ Not working - do not generate pc_test files:
 - gramschmidt, symm:
   - Error: map is not single valued. maynot be convertible to pwaff for dimension 0.
 
-dynprog, reg_detect:
-- Error: generated prolog/epilog has invalid syntax
--- DONE (both benchmarks pass)
-
-Other errors:
-- cholesky, ludcmp, fdtd-apml - double insert - manually check if code is valid.
-
-
+Running the generated code:
+ - run fails (assert _diff == 0 failed) - covariance, seidel-2d, correlation, jacobi-1d-imper
+- compile errors: 
+  cholesky, fdtd-apml, ludcmp - fix double insert, still fails with manual fix 

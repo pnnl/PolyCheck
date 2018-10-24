@@ -1421,11 +1421,11 @@ struct PragmaPdHandler : public PragmaHandler {
       loc.start = SM.getFileOffset(sloc);
 
 	    // TheRewriter.InsertTextAfter(sloc, "#include<assert.h>\n");
-      // TheRewriter.InsertTextAfter(sloc,"#define ceild(n,d)  ceil(((double)(n))/((double)(d))) \n");
-      // TheRewriter.InsertTextAfter(sloc,"#define floord(n,d) floor(((double)(n))/((double)(d))) \n");
-
       TheRewriter.InsertTextAfter(sloc, "#define max(x,y)    ((x) > (y)? (x) : (y))\n");
       TheRewriter.InsertTextAfter(sloc, "#define min(x,y)    ((x) < (y)? (x) : (y))\n");
+      TheRewriter.InsertTextAfter(sloc,"#define ceild(n,d)  ceil(((double)(n))/((double)(d))) \n");
+      TheRewriter.InsertTextAfter(sloc,"#define floord(n,d) floor(((double)(n))/((double)(d))) \n");
+
 	    // TheRewriter.InsertTextAfter(sloc, "int checksum;\n");
 	    // TheRewriter.InsertTextAfter(sloc, "int version;\n");
       // The following insert is not necessary
