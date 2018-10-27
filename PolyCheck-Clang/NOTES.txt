@@ -26,7 +26,7 @@ TODO:
 
 - Ensure variables in polynomial match the loop variables (shows up in epilog of
  x-eliminated cholseky). Need to use preprocessor macros rather than inlining 
- the polynomial expression.
+ the polynomial expression. -- DONE
 
 Not working - do not generate pc_test files:
 - adi - Error: unable to create pw_aff for dimension 1
