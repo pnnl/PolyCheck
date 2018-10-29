@@ -22,7 +22,7 @@ TODO:
   transformed programs (that generate operations to be checked).
 
 - Support for kills to handle intermediate variables (to some extent) 
-(needed for cholesky, lu, gramschmidt, symm)
+(needed for gramschmidt and symm)
 
 - Ensure variables in polynomial match the loop variables (shows up in epilog of
  x-eliminated cholseky). Need to use preprocessor macros rather than inlining 
@@ -34,7 +34,17 @@ Not working - do not generate pc_test files:
 - gramschmidt, symm:
   - Error: map is not single valued. maynot be convertible to pwaff for dimension 0.
 
-Running the generated code:
+UPDATED
+- run fails (assert _diff == 0 failed) - correlation
+  - Two statements are causing the problem. The statement with the ternary operator and the 'symmat[j1][j1]=0.0' statement.
+- compile errors:
+  - fdtd-apml - fix double insert, then fails assertion _diff == 0
+  - cholesky, ludcmp - PolyCheck crash (seg fault or double free)
+
+-----
+
+OLD Running the generated code:
  - run fails (assert _diff == 0 failed) - covariance, seidel-2d, correlation, jacobi-1d-imper
+   -- Of these only correlation fails now. correlation segfaults when running Polycheck
 - compile errors: 
   cholesky, fdtd-apml, ludcmp - fix double insert, still fails with manual fix 

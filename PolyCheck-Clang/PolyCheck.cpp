@@ -83,7 +83,7 @@ class Prolog {
             array_ref += "[" + join(args_vec, "][") + "]";
         }
         std::string pre =
-          "#define PC_PR(" + join(args_vec, ",") + ")\t" + array_ref + " = 0\n";
+          "#define PC_PR(" + join(args_vec, ",") + ")\t" + array_ref + " = 1\n";
         std::string post = "#undef PC_PR\n";
         prolog +=
           pre + replace_all(set_code, array_name + "(", "PC_PR(") + post;
@@ -107,11 +107,20 @@ class Epilog {
     Epilog& operator=(const Epilog&) = default;
     Epilog& operator=(Epilog&&) = default;
 
-    Epilog(isl_union_map* W) {
+    Epilog(isl_union_map* R, isl_union_map* W) {
         isl_union_pw_qpolynomial* WC =
           isl_union_map_card(isl_union_map_reverse(islw::copy(W)));
         isl_union_pw_qpolynomial_foreach_pw_qpolynomial(
           WC, Epilog::epilog_per_poly, &this->str_);
+        isl_union_set* rset = isl_union_map_range(islw::copy(R));
+        isl_union_set* wset = isl_union_map_range(islw::copy(W));
+        isl_union_set* ronly_set =
+          isl_union_set_subtract(islw::copy(rset), islw::copy(wset));
+        isl_union_set_foreach_set(ronly_set, Epilog::epilog_per_ronly_piece,
+                                  &this->str_);
+        islw::destruct(rset);
+        islw::destruct(wset);
+        islw::destruct(ronly_set);
         islw::destruct(WC);
     }
 
@@ -120,6 +129,42 @@ class Epilog {
     }
 
     private:
+    // should be a lambda
+    static isl_stat epilog_per_ronly_piece(isl_set* iset, void* user) {
+        assert(iset);
+        assert(user);
+        std::string& ep = *(std::string*)user;
+        const unsigned ndim = isl_set_dim(iset, isl_dim_set);
+        for(unsigned i = 0; i < ndim; i++) {
+            iset = isl_set_set_dim_name(iset, isl_dim_set, i,
+                                       ("_i" + std::to_string(i)).c_str());
+        }
+        std::string set_code = islw::to_c_string(iset);
+        std::vector<std::string> args_vec;
+        for(unsigned i=0; i<isl_set_dim(iset, isl_dim_set); i++) {
+            assert(isl_set_has_dim_name(iset, isl_dim_set, i) == isl_bool_true);
+            assert(isl_set_has_dim_id(iset,isl_dim_set, i) == isl_bool_true);
+            const char *str =isl_set_get_dim_name(iset, isl_dim_set, i);
+            assert(str);
+            args_vec.push_back(str);
+        }
+        std::string array_name{isl_set_get_tuple_name(iset)};
+        std::string array_ref = array_name;
+
+        if(ndim>0) {
+            array_ref += "[" + join(args_vec, "][") + "]";
+        }
+        std::string ep_macro_def = "#define PC_EP_CHECK(" +
+                                   join(args_vec, ",") +
+                                   ")\t _diff |= 1 ^ (int)" + array_ref + "\n";
+        std::string ep_macro_undef = "#undef PC_EP_CHECK\n";
+        ep += ep_macro_def +
+              replace_all(set_code, array_name + "(", "PC_EP_CHECK(") +
+              ep_macro_undef;
+        islw::destruct(iset);
+        return isl_stat_ok;
+    }
+
     // should be a lambda
     static isl_stat epilog_per_poly(isl_pw_qpolynomial* pwqp, void* user) {
         isl_pw_qpolynomial_foreach_piece(pwqp, Epilog::epilog_per_poly_piece, user);
@@ -156,13 +201,13 @@ class Epilog {
             args_vec.push_back(str);
         }
         std::string array_name{isl_set_get_tuple_name(set)};
-        std::string array_ref = array_name;;
+        std::string array_ref = array_name;
         if(ndim>0) {
             array_ref += "[" + join(args_vec, "][") + "]";
         }
         std::string ep_macro_def =
-          "#define PC_EP_CHECK(" + join(args_vec, ",") + ")\t _diff |= (" +
-          poly_code + ") ^ (int)" + array_ref + "\n";
+          "#define PC_EP_CHECK(" + join(args_vec, ",") + ")\t _diff |= (1+(" +
+          poly_code + ")) ^ (int)" + array_ref + "\n";
         std::string ep_macro_undef = "#undef PC_EP_CHECK\n";
         ep += ep_macro_def +
               replace_all(set_code, array_name + "(", "PC_EP_CHECK(") +
@@ -176,8 +221,8 @@ class Epilog {
 };  // class Epilog
 
 
-std::string epilog(isl_union_map* W) {
-    Epilog epilog{W};
+std::string epilog(isl_union_map* R, isl_union_map* W) {
+    Epilog epilog{R, W};
     return epilog.to_string();
 }
 
@@ -220,7 +265,7 @@ int main(int argc, char* argv[]) {
     }
 
     const std::string prologue = prolog(R, W) + "\n";
-    const std::string epilogue = epilog(W);
+    const std::string epilogue = epilog(R, W);
     std::cout << "Prolog\n------\n" << prologue << "\n----------\n";
     std::cout << "Epilog\n------\n" << epilogue << "\n----------\n";
     //std::cout << "Inline checks\n------\n";
@@ -231,8 +276,9 @@ int main(int argc, char* argv[]) {
 
     ParseScop(target, stmts, prologue, epilogue, output_file_name(target));
     stmts.clear();
-    pet_scop_free(scop);
     isl_schedule_free(isched);
-    islw::destruct(R, W, S, ctx);
+    islw::destruct(R, W, S);
+    pet_scop_free(scop);
+    islw::destruct(ctx);
     return 0;
 }

@@ -794,17 +794,23 @@ class Statement {
         isl_union_map* LT =
         //   isl_union_map_from_map(isl_map_lex_lt(isl_union_set_get_space(T)));
         isl_union_set_lex_gt_union_set(islw::copy(T), islw::copy(T));
+        isl_union_map* LE =
+        //   isl_union_map_from_map(isl_map_lex_lt(isl_union_set_get_space(T)));
+        isl_union_set_lex_ge_union_set(islw::copy(T), islw::copy(T));
         isl_union_map* TWinv =
           isl_union_map_reverse(islw::umap_compose(Sinv, W));
 
         for(size_t i=0; i<read_refs_.size(); i++) {
-          isl_union_map* rr_umap = isl_union_map_from_map(islw::copy(read_refs_[i]));
+            isl_union_map* rr_umap =
+              isl_union_map_from_map(islw::copy(read_refs_[i]));
             isl_union_map* T_to_prevW = isl_union_map_intersect(
-              islw::copy(LT),
-              islw::umap_compose(
-                Sinv, rr_umap,
-                TWinv));
-                islw::destruct(rr_umap);
+              islw::copy(LT), islw::umap_compose(Sinv, rr_umap, TWinv));
+            isl_union_map* Tself =
+              isl_union_set_identity(isl_union_map_range(islw::umap_compose_left(
+                isl_union_map_reverse(islw::copy(rr_umap)), S)));
+            T_to_prevW = isl_union_map_union(T_to_prevW, islw::copy(Tself));
+            islw::destruct(Tself);
+            islw::destruct(rr_umap);
             isl_union_map* S_to_prevW = islw::umap_compose(S, T_to_prevW);
             read_ref_cards_.push_back(isl_union_map_card(islw::copy(S_to_prevW)));
             std::cerr<<"---------------------------\n";
@@ -841,14 +847,14 @@ class Statement {
             isl_union_map* wr_umap =
               isl_union_map_from_map(islw::copy(write_ref_));
             isl_union_map* T_to_prevW = isl_union_map_intersect(
-              islw::copy(LT), islw::umap_compose(Sinv, wr_umap, TWinv));
+              islw::copy(LE), islw::umap_compose(Sinv, wr_umap, TWinv));
             islw::destruct(wr_umap);
             isl_union_map* S_to_prevW = islw::umap_compose(S, T_to_prevW);
             write_ref_card_ = isl_union_map_card(islw::copy(S_to_prevW));
             islw::destruct(S_to_prevW);
             islw::destruct(T_to_prevW);
         }
-        islw::destruct(Sinv, sinstances, T, LT, TWinv);
+        islw::destruct(Sinv, sinstances, T, LT, LE, TWinv);
     }
 
     void construct_read_ref_macros() {
@@ -1479,7 +1485,6 @@ void WriteToFile(string outputFileName, string output)
 // ParseScop: the main file 
 int ParseScop(string fileName, std::vector<Statement> &stmts, string prologue, string epilogue, string outputFileName)
 {
-
   // CompilerInstance will hold the instance of the Clang compiler,
   // managing the various objects needed to run the compiler.
   CompilerInstance TheCompInst;
