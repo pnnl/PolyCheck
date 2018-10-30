@@ -1033,7 +1033,8 @@ public:
               TraverseExprToCheckArray (c->getTrueExpr()) ||
               TraverseExprToCheckArray (c->getFalseExpr()) );
     }
-    else if (expr->getStmtClass() == Stmt::IntegerLiteralClass || expr->getStmtClass() == Stmt::FloatingLiteralClass)
+    else if (expr->getStmtClass() == Stmt::IntegerLiteralClass ||
+             expr->getStmtClass() == Stmt::FloatingLiteralClass)
     {
 	    // do nothing
       return false;
@@ -1088,7 +1089,8 @@ public:
       TraverseExprToGetStmtIters (c->getTrueExpr(), vecIters, varIds);
       TraverseExprToGetStmtIters (c->getFalseExpr(), vecIters, varIds);
     }
-    else if (expr->getStmtClass() == Stmt::IntegerLiteralClass || expr->getStmtClass() == Stmt::FloatingLiteralClass)
+    else if (expr->getStmtClass() == Stmt::IntegerLiteralClass ||
+             expr->getStmtClass() == Stmt::FloatingLiteralClass)
     {
 	    clang::LangOptions LangOpts;
       LangOpts.CPlusPlus = true;
@@ -1242,6 +1244,7 @@ public:
             bool equal = CheckStmtVarIds(stmtVarIds, petStmtVarIds);
             if (equal){
               TheRewriter.InsertText(END1, stmts[i].inline_checks(stmtVecIters), true, true);
+              break;
             }
           } //
 
