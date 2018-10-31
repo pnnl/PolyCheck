@@ -257,7 +257,9 @@ int main(int argc, char* argv[]) {
     std::vector<Statement> stmts;
     {
         for(int i = 0; i < scop->n_stmt; i++) {
-            stmts.push_back(Statement{i, scop});
+            auto l = pet_loc_get_line(scop->stmts[i]->loc);
+            std::cout << "---------#statement " << i << " in line: " << l << "------------\n";
+            if(l!=-1) stmts.push_back(Statement{i, scop});
         }
         // for(const auto& stmt : stmts) {
         //     inline_checks.push_back(stmt.inline_checks());
