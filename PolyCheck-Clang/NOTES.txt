@@ -13,14 +13,16 @@ TODO:
 - Include version information on the written array reference in computing 
   statement instance -- DONE
 
-- Check write version numbers in inline checks as well
+- Check write version numbers in inline checks as well -- DONE
 
 - Add support when multiple statements in source program match a statement in the
-  transformed program
+  transformed program. Needed for ludcmp, cholesky, and fdtd. -- DONE
 
 - Add support to properly detect and terminate out of non-terminating 
-  transformed programs (that generate operations to be checked).
+  transformed programs (that generate operations to be checked). -- 
+  Non-essential feature
 
+- Handle integer overflow possibility in version number computation. -- DONE
 - Support for kills to handle intermediate variables (to some extent) 
 (needed for gramschmidt and symm)
 
@@ -35,6 +37,10 @@ Not working - do not generate pc_test files:
   - Error: map is not single valued. maynot be convertible to pwaff for dimension 0.
 
 UPDATED
+- All other tests pass
+
+---old status below
+
 - run fails (assert _diff == 0 failed) - correlation
   - Two statements are causing the problem. The statement with the ternary operator and the 'symmat[j1][j1]=0.0' statement.
 - compile errors:
