@@ -2,38 +2,39 @@
 Prerequisites
 --------------
 
-- LLVM/clang >= 5.0 (http://clang.llvm.org/get_started.html)
-    - On MACOSX: brew install llvm
+- LLVM/Clang >= 5.0 (currently tested with versions 5 & 6 only)
+    - `MACOSX`: brew install llvm
 
 - GNU GMP from: https://gmplib.org
-    - On MACOSX: brew install libgmp
+    - `MACOSX`: brew install libgmp
 
 - NTL: A Library for doing Number Theory
     ```
     wget http://www.shoup.net/ntl/ntl-10.5.0.tar.gz
     tar xvf ntl-10.5.0.tar.gz
     cd ntl-10.5.0/src
-    ./configure NTL_GMP_LIP=on PREFIX=/opt/libraries/ntl
+    ./configure NTL_GMP_LIP=on PREFIX=$HOME/ntl
     make
     make install
     ```
 
-- Barvinok (will automatically install remaining prerequisites: pet, isl, polylib):
+- Barvinok (will automatically install remaining prerequisites: pet, isl, polylib):  
+   - `MACOSX NOTE:` barvinok does not currently build with brew installed gcc, please use the default gcc or brew installed llvm
     ```
     wget http://barvinok.gforge.inria.fr/barvinok-0.41.tar.gz
     tar xf barvinok-0.41.tar.gz
     cd barvinok-0.41
     
-    export BARVINOK_INSTALL=/opt/libraries/barvinok
-    ./configure --prefix=$BARVINOK_INSTALL NTL_GMP_LIP=on 
-    --with-gmp-prefix=/opt/libraries/gmp --with-ntl-prefix=/opt/libraries/ntl
-    --with-pet=bundled --with-clang-prefix=/opt/compilers/llvm5 CXXFLAGS='-fno-rtti'
+    export BARVINOK_INSTALL_PATH=$HOME/barvinok
+    ./configure --prefix=$BARVINOK_INSTALL_PATH NTL_GMP_LIP=on 
+    --with-gmp-prefix=/usr/local --with-ntl-prefix=$HOME/ntl
+    --with-pet=bundled --with-clang-prefix=/usr/local/opt/llvm CXXFLAGS='-fno-rtti'
     make install
 
-    cp pet/context.h $BARVINOK_INSTALL/include/
-    cp pet/summary.h $BARVINOK_INSTALL/include/
-    cp pet/expr.h $BARVINOK_INSTALL/include/
-    cp pet/expr_access_type.h $BARVINOK_INSTALL/include/
+    cp pet/context.h $BARVINOK_INSTALL_PATH/include/
+    cp pet/summary.h $BARVINOK_INSTALL_PATH/include/
+    cp pet/expr.h $BARVINOK_INSTALL_PATH/include/
+    cp pet/expr_access_type.h $BARVINOK_INSTALL_PATH/include/
   ```
 
 Building PolyCheck-Clang  
@@ -41,10 +42,10 @@ Building PolyCheck-Clang
    
 - Makefile based build: Edit the following lines in Makefile and run make  
     ```
-    NTL_INSTALL = /opt/libraries/ntl  
-    BARVINOK_INSTALL = /opt/libraries/barvinok  
-    LLVM_INSTALL = /opt/compilers/llvm5
-    (Optional) GMP_INSTALL = ...
+    NTL_INSTALL_PATH = $HOME/ntl  
+    BARVINOK_INSTALL_PATH = $HOME/barvinok  
+    LLVM_INSTALL_PATH = /usr/local/opt/llvm
+    (Optional) GMP_INSTALL_PATH = /usr/local
     ```
 
 - Using CMake
@@ -52,9 +53,9 @@ Building PolyCheck-Clang
 	cd PolyCheck-Clang
 	mkdir build && cd build
 	cmake .. 
-    -DNTL_INSTALL_PATH=/opt/ntl 
-    -DLLVM_INSTALL_PATH=/opt/llvm
-    -DBARVINOK_INSTALL_PATH=/opt/barvinok-0.41 
+    -DNTL_INSTALL_PATH=$HOME/ntl 
+    -DLLVM_INSTALL_PATH=$HOME/llvm
+    -DBARVINOK_INSTALL_PATH=$HOME/barvinok
 	make
 	```
 
