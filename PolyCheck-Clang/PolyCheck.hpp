@@ -312,6 +312,8 @@ class Statement {
             }
             islw::destruct(upw);
         }
+#if 0
+      //SK: excluding write version numbers from computing statement instance to enable redundant writes
         // add write version number expressions if it is affine
         if(write_ref_card_) {
             isl_union_pw_qpolynomial* upw = islw::copy(write_ref_card_);
@@ -335,6 +337,7 @@ class Statement {
             }
             islw::destruct(upw);            
         }
+#endif
         //@todo @fixme Also add write version numbers for completeness
         isl_map* refs_to_stmt = isl_map_reverse(stmt_to_refs);
         // if(write_ref_) {
@@ -523,16 +526,19 @@ class Statement {
         }
         str += "\n";
 #if 1
-        // for(auto j = 0; j < write_array_size_; j++) {
-        //     str   += "_diff |= " + write_dim_id_macro_name(j) + "(" +
-        //            sinstance_args_string() + ")" + " ^ " +
-        //            write_ref_dim_string(j) + ";\n";
-        // }
+        for(auto j = 0; j < write_array_size_; j++) {
+            str   += "_diff |= " + write_dim_id_macro_name(j) + "(" +
+                   sinstance_args_string() + ")" + " ^ " +
+                   write_ref_dim_string(j) + ";\n";
+        }
         str += "\n";
+#if 0
+        //SK: comment out check for write version number to enable data layout transformations
         str += diff_var + " |= " + write_ref_macro_name() + "(" +
                sinstance_args_string() + ")" +
                " ^ " + "(int)(" + write_ref_string() + ");\n";
         str += "\n";
+#endif
 #endif
         if(write_ref_ != nullptr) {
             // str += write_array_name_;
@@ -544,7 +550,16 @@ class Statement {
             // }
             // if(write_array_size_ != 0) { str += "]"; }
             str += "if("+diff_var+"==0) {\n"+
-              write_ref_string() + " += 1;\n}\n";
+              write_ref_string() +
+              #if 1
+              //SK: store version number rather than counter
+               " = " + write_ref_macro_name() + "(" +
+               sinstance_args_string() + ")+1;"+
+               #else
+              //SK:  store counter
+              " += 1;" + 
+              #endif
+              "\n}\n";
         }
         str += "\n";
         for(auto i = 0; i < dim(); i++) {
@@ -1101,12 +1116,12 @@ class Statement {
       return isl_set_n_dim(domain_);
     }
 
-    int stmt_id_;
-    isl_set* domain_;
-    std::vector<isl_map*> read_refs_;
-    std::vector<std::string> read_array_names_;
+    int stmt_id_; //id of the statement from PET
+    isl_set* domain_; //statement domain
+    std::vector<isl_map*> read_refs_; //maps to read array references
+    std::vector<std::string> read_array_names_; //names of all array refs on the RHS
     std::vector<int> array_sizes_; //dimensionality of the i-th read array reference 
-    std::vector<isl_union_pw_qpolynomial*> read_ref_cards_;
+    std::vector<isl_union_pw_qpolynomial*> read_ref_cards_; //
     // std::vector<std::string> read_ref_macro_names_;
     std::vector<std::string> read_ref_macro_args_;
     std::vector<std::string> read_ref_macro_exprs_;
@@ -1114,9 +1129,9 @@ class Statement {
     std::vector<std::vector<std::string>> read_dim_macro_args_;
     //std::vector<std::string> inline_checks_;
 
-    isl_map* write_ref_;
-    std::string write_array_name_;
-    int write_array_size_;
+    isl_map* write_ref_; //map to the write array reference
+    std::string write_array_name_; //name of the array written
+    int write_array_size_; //dimensionality of the write array reference
     isl_union_pw_qpolynomial* write_ref_card_;
     std::string write_ref_macro_args_;
     std::string write_ref_macro_exprs_;
