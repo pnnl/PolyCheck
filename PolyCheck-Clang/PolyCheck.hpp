@@ -819,7 +819,7 @@ class Statement {
     std::string read_ref_macro_def_string(int read_ref_id) const {
       assert(read_ref_id >=0);
       assert(read_ref_id < read_refs_.size());
-      assert(read_ref_id > read_ref_macro_args_.size());
+      assert(read_ref_id < read_ref_macro_args_.size());
       assert(read_ref_id < read_ref_macro_exprs_.size());
       std::string ret;
 #if 0
