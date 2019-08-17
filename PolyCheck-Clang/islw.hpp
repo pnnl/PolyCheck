@@ -6,6 +6,7 @@
 #include <isl/union_set.h>
 #include <isl/set.h>
 #include <isl/map.h>
+#include <isl/list.h>
 #include <isl/printer.h>
 #include <isl/point.h>
 #include <isl/id.h>
@@ -354,8 +355,9 @@ isl_set* copy(isl_set* iset) {
 ////////////////////////////////////////////////////////////////////////////////
 
 template<typename T>
-std::string to_string(T* obj, int output_format = ISL_FORMAT_ISL) {
-    isl_ctx* ctx = context(obj);
+std::string to_string(T* obj, int output_format = ISL_FORMAT_ISL,
+                      bool destroy_after = false) {
+    isl_ctx* ctx         = context(obj);
     isl_printer* printer = isl_printer_to_str(ctx);
     printer = isl_printer_set_output_format(printer, output_format);
     printer = to_printer(printer, obj);
@@ -363,8 +365,24 @@ std::string to_string(T* obj, int output_format = ISL_FORMAT_ISL) {
     isl_printer_free(printer);
     std::string ret{output};
     free(output);
+    if(destroy_after) { islw::destruct(obj); }
     return ret;
 }
+
+// template<typename T>
+// std::string to_string(T* obj, int output_format = ISL_FORMAT_ISL,
+//                       bool destroy_after = false) {
+//     isl_ctx* ctx         = context(obj);
+//     isl_printer* printer = isl_printer_to_str(ctx);
+//     printer      = isl_printer_set_output_format(printer, output_format);
+//     printer      = to_printer(printer, obj);
+//     char* output = isl_printer_get_str(printer);
+//     isl_printer_free(printer);
+//     std::string ret{output};
+//     free(output);
+//     if(destroy_after) { islw::destruct(obj); }
+//     return ret;
+// }
 
 // template<>
 // std::string to_string(isl_id* id, int output_format) {
@@ -372,12 +390,12 @@ std::string to_string(T* obj, int output_format = ISL_FORMAT_ISL) {
 // }
 
 template<typename T>
-std::string to_c_string(T* obj) {
-    return to_string(obj, ISL_FORMAT_C);
+std::string to_c_string(T* obj, bool destroy_after=false) {
+    return to_string(obj, ISL_FORMAT_C, destroy_after);
 }
 
 template<>
-std::string to_c_string(isl_union_map* umap) {
+std::string to_c_string(isl_union_map* umap, bool destroy_after) {
     isl_set* cset        = isl_set_universe(isl_union_map_get_space(umap));
     isl_ast_build* build = isl_ast_build_from_context(cset);
     isl_ast_node* node =
@@ -385,15 +403,21 @@ std::string to_c_string(isl_union_map* umap) {
     std::string str = islw::to_c_string(node);
     islw::destruct(build);
     islw::destruct(node);
+    if(destroy_after) {
+        islw::destruct(umap);
+    }
     return str;
 }
 
 template<>
-std::string to_c_string(isl_set* iset) {
+std::string to_c_string(isl_set* iset, bool destroy_after) {
     isl_union_map* umap = isl_union_set_identity(
         isl_union_set_from_set(islw::copy(iset)));
     std::string str =  islw::to_c_string(umap);
     islw::destruct(umap);
+    if(destroy_after) {
+        islw::destruct(iset);
+    }
     return str;
 }
 
@@ -424,6 +448,59 @@ isl_union_map* umap_compose(isl_union_map* umap1, isl_union_map* umap2, Args... 
     return umap_compose_left(ret, args...);
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+
+template<typename T>
+struct list {
+    using type = void;
+};
+
+template<>
+struct list<isl_union_map> {
+    using type = isl_map_list;
+};
+
+template<>
+struct list<isl_union_set> {
+    using type = isl_basic_set_list;
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+// template<typename T>
+// typename list<T>::type* get_list(T* obj);
+
+// template<>
+// typename list<isl_union_map>::type* get_list(isl_union_map* umap) {
+//     return isl_union_map_get_map_list(umap);
+// }
+
+// template<>
+// typename list<isl_union_set>::type* get_list(isl_union_set* uset) {
+//     return isl_union_set_get_basic_set_list(uset);
+// }
+
+////////////////////////////////////////////////////////////////////////////////
+
+template<typename Obj, typename Func>
+static isl_stat element_func(__isl_take Obj* obj, void *user) {
+    Func* pfunc = reinterpret_cast<Func*>(user);
+    (*pfunc)(obj);
+    islw::destruct(obj);
+    return isl_stat_ok;
+}
+
+template<typename Func>
+void foreach(isl_union_map* umap, Func func) {
+    isl_union_map_foreach_map(umap, element_func<isl_map,Func>, &func);
+}
+
+template<typename Func>
+void foreach(isl_union_set* uset, Func func) {
+    isl_union_set_foreach_set(uset, element_func<isl_set,Func>, &func);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

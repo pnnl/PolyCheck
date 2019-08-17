@@ -426,8 +426,8 @@ class Statement {
     std::string read_ref_macro_defs() const {
         std::string ret;
         // assert(read_refs_.size() == read_ref_macro_names_.size());
-        assert(read_ref_macro_names_.size() == read_ref_macro_args_.size());
-        assert(read_ref_macro_names_.size() == read_ref_macro_exprs_.size());
+        assert(read_refs_.size() == read_ref_macro_args_.size());
+        assert(read_refs_.size() == read_ref_macro_exprs_.size());
         std::cerr<<"NUM DEF MACROS="<<read_refs_.size()<<"\n";
         for(size_t i = 0; i < read_refs_.size(); i++) {
             std::cerr<<"name[i]="<<read_ref_macro_name(i)<<"\n";
@@ -737,7 +737,7 @@ class Statement {
              std::to_string(read_ref_id) + "_i" + std::to_string(dim_id);
     }
     std::string write_dim_id_macro_name(int dim_id) const {
-        assert(dim_id >= 0 && dim_id < write_array_sizes_);
+        assert(dim_id >= 0 && dim_id < write_array_size_);
         return "PC_I_S" + std::to_string(stmt_id_) + "_w" + "_i" +
                std::to_string(dim_id);
     }
