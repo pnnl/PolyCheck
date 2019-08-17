@@ -176,7 +176,7 @@ class ArrayInfo {
         //        id_bitmask_variable() + ", " + id_bitoffset_variable() + ";\n";
         ret += "unsigned long long " + ver_bitcount_variable() + ", " +
                ver_bitmask_variable() + ", " + ver_bitoffset_variable() + ";\n";
-        ret += "extern unsigned long long "+maxver_variable()+";\n";
+        ret += "unsigned long long "+maxver_variable()+";\n";
         for(int i = 0; i < ndim(); i++) {
             ret += "unsigned long long " + dim_bitcount_variable(i) +
                    ", " + dim_bitoffset_variable(i) + ", " +
@@ -343,7 +343,7 @@ class ArrayInfo {
         assert(dim >= 0);
         assert(dim < ndim());
         std::string ret;
-        ret = "#define " + dim_encode_macro_name(dim) + "(_x) (((_x)-" +
+        ret = "#define " + dim_encode_macro_name(dim) + "(_x) ((((uint64_t)(_x))-" +
               dim_minindex_variable(dim) + ")<<" + dim_bitoffset_variable(dim) +
               ")\n";
         return ret;
@@ -355,14 +355,14 @@ class ArrayInfo {
 
     std::string id_encode_macro_defn() const {
         std::string ret;
-        ret = "#define " + id_encode_macro_name() + "() (" +
+        ret = "#define " + id_encode_macro_name() + "() ((uint64_t)" +
               std::to_string(id_) + ")\n";
         return ret;
     }
 
     std::string ver_encode_macro_defn() const {
         std::string ret;
-        ret = "#define " + ver_encode_macro_name() + "(_x) ((_x)<<" +
+        ret = "#define " + ver_encode_macro_name() + "(_x) (((uint64_t)(_x))<<" +
               ver_bitoffset_variable() + ")\n";
         return ret;
     }
@@ -375,7 +375,7 @@ class ArrayInfo {
         assert(dim >= 0);
         assert(dim < ndim());
         std::string ret;
-        ret = "#define " + dim_decode_macro_name(dim) + "(_x) " + "((((_x)&" +
+        ret = "#define " + dim_decode_macro_name(dim) + "(_x) " + "(((((uint64_t)(_x))&" +
               dim_bitmask_variable(dim) + ")>>" + dim_bitoffset_variable(dim) +
               ")+" + dim_minindex_variable(dim) + ")\n";
         return ret;
@@ -387,14 +387,14 @@ class ArrayInfo {
 
     std::string id_decode_macro_defn() const {
         std::string ret;
-        ret = "#define " + id_decode_macro_name() + "(_x) ((_x)&" +
+        ret = "#define " + id_decode_macro_name() + "(_x) (((uint64_t)(_x))&" +
               id_mask_expr() + ")\n";
         return ret;
     }
 
     std::string ver_decode_macro_defn() const {
         std::string ret;
-        ret = "#define " + ver_decode_macro_name() + "(_x) " + "(((_x)&" +
+        ret = "#define " + ver_decode_macro_name() + "(_x) " + "((((uint64_t)(_x))&" +
               ver_bitmask_variable() + ")>>" + ver_bitoffset_variable() + ")\n";
         return ret;
     }
@@ -717,7 +717,8 @@ class Prolog {
     }
 
     std::string to_string() const {
-        return "#include <assert.h>\n int _diff = 0;\n{\n" + str_ + "\n}\n";
+        return "#include <assert.h>\n int _diff = 0;\n{\n" +
+               array_pack_.entry_function_preamble() + str_ + "\n}\n";
     }
 
     private:
@@ -799,7 +800,8 @@ class Epilog {
     }
 
     std::string to_string() const {
-        return "{\n"+str_+"\n assert(_diff == 0); \n}\n";
+        return "{\n" + array_pack_.nonentry_function_preamble() + str_ +
+               "\n assert(_diff == 0); \n}\n";
     }
 
     private:
@@ -980,8 +982,8 @@ int main(int argc, char* argv[]) {
     std::cout << "Epilog\n------\n" << epilogue << "\n----------\n";
     std::cout << "#statements=" << scop->n_stmt << "\n";
     ArrayPack array_pack{R, W};
-    std::cout << "//ENTRY FUNCTION:\n-------------------\n"
-              << array_pack.nonentry_function_preamble() << "\n"
+    std::cout << "//GLOBAL DECLARATIONS:\n-------------------\n"
+              << array_pack.global_decls() << "\n"
               <<"-----------------------\n";
     //std::cout << "Inline checks\n------\n";
     // for(size_t i=0; i<inline_checks.size(); i++) {
