@@ -6,6 +6,7 @@
 
 #include "islw.hpp"
 #include "util.hpp"
+#include "array_pack.hpp"
 
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/RecursiveASTVisitor.h"

@@ -75,4 +75,32 @@ std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
     return os;
 }
 
+/**
+ * Pass in @param v the number of values to represented
+ *
+ * @return Number of bits required to represent 0..(v-1)
+ */
+static unsigned num_bits(uint64_t v) {
+    // http://graphics.stanford.edu/~seander/bithacks.html#IntegerLogObvious
+    uint64_t r; // result of log2(v) will go here
+    uint64_t shift;
+    uint64_t v1 = v;
+    r = (v > 0xFFFFFFFF) << 5;
+    v >>= r;
+    r |= (v > 0xFFFF) << 4;
+    v >>= r;
+    shift = (v > 0xFF) << 3;
+    v >>= shift;
+    r |= shift;
+    shift = (v > 0xF) << 2;
+    v >>= shift;
+    r |= shift;
+    shift = (v > 0x3) << 1;
+    v >>= shift;
+    r |= shift;
+    r |= (v >> 1);
+    //the result is 1 + floor(log2(v))
+    return r + ((v1^(1<<r))>0);
+}
+
 #endif // PolyCheck_util_hpp_
