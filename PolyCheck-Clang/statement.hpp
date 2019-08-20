@@ -65,7 +65,7 @@ static isl_stat print_pw_qpoly(__isl_take isl_pw_qpolynomial *pwqp, void *user) 
     assert(pwqp);
     assert(user);
     std::string& str = *(std::string*)user;
-    std::cout<<"pwqp in c:---\n"<<islw::to_c_string(pwqp)<<"\n---\n";
+    // std::cout<<"pwqp in c:---\n"<<islw::to_c_string(pwqp)<<"\n---\n";
     str += islw::to_c_string(pwqp);
     islw::destruct(pwqp);
     return isl_stat_ok;
@@ -156,10 +156,10 @@ class Statement {
         //   isl_union_map_intersect_domain(islw::copy(S), islw::copy(domain_));
 
 #endif
-        std::cout<<"#read refs="<<read_refs_.size()<<"\n";
-        if(write_ref_) {
-            std::cout<<"WRITE REF FOUND\n";
-        }
+        // std::cout<<"#read refs="<<read_refs_.size()<<"\n";
+        // if(write_ref_) {
+        //     std::cout<<"WRITE REF FOUND\n";
+        // }
         gather_card(S, R,W);
         assert(read_refs_.size() == read_ref_cards_.size());
         construct_read_ref_macros();
@@ -221,29 +221,29 @@ class Statement {
     void construct_sinstance_macros() {
         isl_map* stmt_to_refs = nullptr;
         for(auto rr : read_refs_) {
-            std::cerr << "^^RR:" << islw::to_string(rr) << "\n";
+            // std::cerr << "^^RR:" << islw::to_string(rr) << "\n";
             if(stmt_to_refs == nullptr) {
                 stmt_to_refs = islw::copy(rr);
-                std::cerr << "^^^S2R update:" << islw::to_string(stmt_to_refs)
-                          << "\n";
+                // std::cerr << "^^^S2R update:" << islw::to_string(stmt_to_refs)
+                //           << "\n";
             } else {
                 stmt_to_refs =
                   isl_map_flat_range_product(stmt_to_refs, islw::copy(rr));
-                std::cerr << "^^^S2R update:" << islw::to_string(stmt_to_refs)
-                          << "\n";
+                // std::cerr << "^^^S2R update:" << islw::to_string(stmt_to_refs)
+                //           << "\n";
             }
         }
         if(write_ref_) {
-            std::cerr << "^^WR:" << islw::to_string(write_ref_) << "\n";
+            // std::cerr << "^^WR:" << islw::to_string(write_ref_) << "\n";
             if(stmt_to_refs == nullptr) {
                 stmt_to_refs = islw::copy(write_ref_);
-                std::cerr << "^^^S2R update:" << islw::to_string(stmt_to_refs)
-                          << "\n";
+                // std::cerr << "^^^S2R update:" << islw::to_string(stmt_to_refs)
+                //           << "\n";
             } else {
                 stmt_to_refs = isl_map_flat_range_product(
                   stmt_to_refs, islw::copy(write_ref_));
-                std::cerr << "^^^S2R update:" << islw::to_string(stmt_to_refs)
-                          << "\n";
+                // std::cerr << "^^^S2R update:" << islw::to_string(stmt_to_refs)
+                //           << "\n";
             }
         }
         std::vector<std::string> ref_args;
@@ -258,8 +258,8 @@ class Statement {
             }
         }
 
-        std::cerr << "S2R before adding version number relations:"
-                  << islw::to_string(stmt_to_refs) << "\n";
+        // std::cerr << "S2R before adding version number relations:"
+        //           << islw::to_string(stmt_to_refs) << "\n";
         // add version number expressions if they are affine
         assert(stmt_to_refs != nullptr);
         assert(read_ref_cards_.size() == read_refs_.size());
@@ -269,19 +269,19 @@ class Statement {
             tmp_str = replace_all(tmp_str, "-> ", "-> [");
             tmp_str = replace_all(tmp_str, ":", "]:");
             tmp_str = replace_all(tmp_str, "-> [{", "-> {");
-                std::cerr << "^^^^^^^^^TRYING VERSION STRING for string="
-                          << tmp_str << "\n";
+                // std::cerr << "^^^^^^^^^TRYING VERSION STRING for string="
+                //           << tmp_str << "\n";
             isl_map* imap =
               isl_map_read_from_str(islw::context(upw), tmp_str.c_str());
             if(imap != nullptr) {
                 // imap = isl_map_set_tuple_name(imap, isl_dim_in, "");
-                std::cerr << "current stmt_to_refs="
-                          << islw::to_string(stmt_to_refs) << "\n";
+                // std::cerr << "current stmt_to_refs="
+                //           << islw::to_string(stmt_to_refs) << "\n";
                 stmt_to_refs = isl_map_flat_range_product(stmt_to_refs, imap);
                 ref_args.push_back(read_ref_src_string(r));
             } else {
-                std::cerr << "^^^^^^^^^SKIPPING VERSION STRING for string="
-                          << tmp_str << "\n";
+                // std::cerr << "^^^^^^^^^SKIPPING VERSION STRING for string="
+                //           << tmp_str << "\n";
             }
             islw::destruct(upw);
         }
@@ -318,7 +318,7 @@ class Statement {
         //       isl_map_flat_range_product(stmt_to_refs, islw::copy(write_ref_));
         // }
 
-        std::cerr << "&&&&&&&|" << islw::to_string(refs_to_stmt) << "|\n";
+        // std::cerr << "&&&&&&&|" << islw::to_string(refs_to_stmt) << "|\n";
         int ndim = dim();
         for(int i=0; i<ndim; i++) {
             isl_map* r2si = islw::copy(refs_to_stmt);
@@ -327,10 +327,10 @@ class Statement {
                   isl_map_project_out(r2si, isl_dim_out, i + 1, ndim - 1 - i);
             }
             if(i > 0) { r2si = isl_map_project_out(r2si, isl_dim_out, 0, i); }
-            std::cerr << "&&&&&&&-----|" << islw::to_string(r2si) << "|\n";
+            // std::cerr << "&&&&&&&-----|" << islw::to_string(r2si) << "|\n";
             if(isl_map_is_single_valued(r2si) != isl_bool_true) {
                 std::cerr << __FUNCTION__ << " : " << __LINE__ << ":\n"
-                          << "Error: map is not single valued. maynot be "
+                          << "Error: map is not single valued. may not be "
                              "convertible to pwaff for dimension "
                           << i << ". Exiting\n";
                 exit(-1);
@@ -355,7 +355,7 @@ class Statement {
             pre = isl_map_reset_tuple_id(pre, isl_dim_in);
             pre = isl_map_reset_tuple_id(pre, isl_dim_out);
             char* cstr = isl_map_to_str(pre);
-            std::cerr << "&&&&&&&---pre upw--|" << cstr << "|\n";
+            // std::cerr << "&&&&&&&---pre upw--|" << cstr << "|\n";
             // islw::destruct(pre);
             // pre = isl_map_read_from_str(islw::context(domain_), cstr);
             free(cstr);
@@ -367,7 +367,7 @@ class Statement {
             // free(cstr);
             upma = isl_union_pw_multi_aff_reset_user(upma);
             std::string tmp_str = islw::to_string(upma);
-            std::cerr << "&&&&&&&---upw--|" << tmp_str << "|\n";
+            // std::cerr << "&&&&&&&---upw--|" << tmp_str << "|\n";
             auto pwa =
               isl_pw_aff_read_from_str(islw::context(r2si), tmp_str.c_str());
             if(pwa == nullptr) {
@@ -375,8 +375,8 @@ class Statement {
                 <<"Error: unable to create pw_aff for dimension "<<i<<". Exiting\n";
                 exit(-1);
             }
-            std::cerr<<"&&&&&&&---pw--|"<<islw::to_string(pwa)<<"|\n";
-            std::cerr<<"&&&&&&&---pw(c)--|"<<islw::to_c_string(pwa)<<"|\n";
+            // std::cerr<<"&&&&&&&---pw--|"<<islw::to_string(pwa)<<"|\n";
+            // std::cerr<<"&&&&&&&---pw(c)--|"<<islw::to_c_string(pwa)<<"|\n";
             sinstance_macro_exprs_.push_back(std::string{"("}+islw::to_c_string(pwa)+")");
 
             auto tmp_sd       = isl_space_domain(isl_pw_aff_get_space(pwa));
@@ -401,18 +401,18 @@ class Statement {
         // assert(read_refs_.size() == read_ref_macro_names_.size());
         assert(read_refs_.size() == read_ref_macro_args_.size());
         assert(read_refs_.size() == read_ref_macro_exprs_.size());
-        std::cerr<<"NUM DEF MACROS="<<read_refs_.size()<<"\n";
+        // std::cerr<<"NUM DEF MACROS="<<read_refs_.size()<<"\n";
         for(size_t i = 0; i < read_refs_.size(); i++) {
-            std::cerr<<"name[i]="<<read_ref_macro_name(i)<<"\n";
-            std::cerr<<"args[i]="<<read_ref_macro_args_[i]<<"\n";
-            std::cerr<<"exprs[i]="<<read_ref_macro_exprs_[i]<<"\n";
+            // std::cerr<<"name[i]="<<read_ref_macro_name(i)<<"\n";
+            // std::cerr<<"args[i]="<<read_ref_macro_args_[i]<<"\n";
+            // std::cerr<<"exprs[i]="<<read_ref_macro_exprs_[i]<<"\n";
             // ret += "#define " + read_ref_macro_name(i) +
             //        read_ref_macro_args_[i] + "\t("+
             //        read_ref_macro_exprs_[i] + ")\n";
             ret += read_ref_macro_def_string(i);
-        std::cerr<<"DEFS=\n"<<ret<<"\n";
+        // std::cerr<<"DEFS=\n"<<ret<<"\n";
         }
-        std::cerr<<"DEFS=\n"<<ret<<"\n";
+        // std::cerr<<"DEFS=\n"<<ret<<"\n";
         return ret;
     }
 
@@ -561,6 +561,9 @@ class Statement {
 
     private:
 
+    /**
+     * @bug @fixme Is this the same as read_ref_string()?
+     */
     std::string read_ref_src_string(int read_ref_id) const {
         assert(read_ref_id >= 0);
         assert(read_ref_id < read_refs_.size());
@@ -737,9 +740,9 @@ class Statement {
           prefix (not yet supported).\" \n" +
              "#endif\n";
 #endif
-      std::cerr << "READ_DIM_ID_DIM_STRING. stmt=" << stmt_id_
-                << " read_ref=" << read_ref_id << " dim_id=" << dim_id << "\n";
-                std::cerr<<"STRING = |"<<str<<"| \n";
+    //   std::cerr << "READ_DIM_ID_DIM_STRING. stmt=" << stmt_id_
+    //             << " read_ref=" << read_ref_id << " dim_id=" << dim_id << "\n";
+    //             std::cerr<<"STRING = |"<<str<<"| \n";
       ret += "#define " + read_dim_id_macro_name(read_ref_id, dim_id) + "(" +
              read_dim_macro_args_[read_ref_id][dim_id] + ")\t" +
              //  islw::to_c_string(read_dim_maps_[read_ref_id][dim_id])
@@ -765,9 +768,9 @@ class Statement {
         islw::destruct(newm);
 
         std::string ret;
-      std::cerr << "WRITE_DIM_ID_DIM_STRING. stmt=" << stmt_id_
-                << " write_ref=0" << " dim_id=" << dim_id << "\n";
-                std::cerr<<"STRING = |"<<str<<"| \n";
+    //   std::cerr << "WRITE_DIM_ID_DIM_STRING. stmt=" << stmt_id_
+    //             << " write_ref=0" << " dim_id=" << dim_id << "\n";
+    //             std::cerr<<"STRING = |"<<str<<"| \n";
       ret += "#define " + write_dim_id_macro_name(dim_id) + "(" +
              write_dim_macro_args_[dim_id] + ")\t" +
              //  islw::to_c_string(read_dim_maps_[read_ref_id][dim_id])
@@ -815,6 +818,10 @@ class Statement {
         return ret;
     }
 
+    /**
+     * @brief Gatherr read and write references, array names, 
+     * and number of array dimensions.
+     */
     void gather_references(pet_expr* expr) {
         if(pet_expr_get_type(expr) == pet_expr_access) {
             if(pet_expr_access_is_read(expr)) {
@@ -845,7 +852,7 @@ class Statement {
                   isl_union_map_range(pet_expr_access_get_may_read(expr)));
                 array_sizes_.push_back(isl_set_dim(tmp_set, isl_dim_set));
                 islw::destruct(tmp_set);
-                std::cout<<"&&&& DIM "<<read_array_names_.back()<<" = "<<array_sizes_.back()<<"\n";
+                // std::cout<<"&&&& DIM "<<read_array_names_.back()<<" = "<<array_sizes_.back()<<"\n";
                 // array_sizes_.push_back(pet_expr_get_n_arg(expr));
                 #else
                 array_sizes_.push_back(1);
@@ -916,20 +923,20 @@ class Statement {
             islw::destruct(rr_umap);
             isl_union_map* S_to_prevW = islw::umap_compose(S, T_to_prevW);
             read_ref_cards_.push_back(isl_union_map_card(islw::copy(S_to_prevW)));
-            std::cerr<<"---------------------------\n";
-            std::cerr << "STMT " << stmt_id_ << " READ " << i<<"\n";
-            std::cerr<<"read_refs:\n"<<islw::to_string(read_refs_[i])<<"\n";
-            std::cerr<<"LT:\n"<<islw::to_string(LT)<<"\n";
+            // std::cerr<<"---------------------------\n";
+            // std::cerr << "STMT " << stmt_id_ << " READ " << i<<"\n";
+            // std::cerr<<"read_refs:\n"<<islw::to_string(read_refs_[i])<<"\n";
+            // std::cerr<<"LT:\n"<<islw::to_string(LT)<<"\n";
             auto* Tspc = isl_union_set_get_space(T);
-            std::cerr<<"Space(T): "<<islw::to_string(Tspc)<<"\n";
+            // std::cerr<<"Space(T): "<<islw::to_string(Tspc)<<"\n";
             islw::destruct(Tspc);
-            std::cerr<<"T:\n"<<islw::to_string(T)<<"\n";
-            std::cerr<<"TWinv:\n"<<islw::to_string(TWinv)<<"\n";
-            std::cerr<<"Sinv:\n"<<islw::to_string(Sinv)<<"\n";
-            std::cerr<<"T_to_prevW:\n"<<islw::to_string(T_to_prevW)<<"\n";
-            std::cerr<<"S_to_prevW:\n"<<islw::to_string(S_to_prevW)<<"\n";
+            // std::cerr<<"T:\n"<<islw::to_string(T)<<"\n";
+            // std::cerr<<"TWinv:\n"<<islw::to_string(TWinv)<<"\n";
+            // std::cerr<<"Sinv:\n"<<islw::to_string(Sinv)<<"\n";
+            // std::cerr<<"T_to_prevW:\n"<<islw::to_string(T_to_prevW)<<"\n";
+            // std::cerr<<"S_to_prevW:\n"<<islw::to_string(S_to_prevW)<<"\n";
 
-            std::cerr              << " CARD:\n-----\n";
+            // std::cerr              << " CARD:\n-----\n";
 
             std::cout<<islw::to_string(read_ref_cards_.back())<<"\n------\n";
 
@@ -937,9 +944,9 @@ class Statement {
                           read_ref_cards_.back(),
                            isl_union_pw_qpolynomial_get_space(
                              read_ref_cards_.back()));
-            std::cout << "pw\n-------\n"
-                      << isl_pw_qpolynomial_to_str(pwqp)
-                      << "\n----\n";
+            // std::cout << "pw\n-------\n"
+            //           << isl_pw_qpolynomial_to_str(pwqp)
+            //           << "\n----\n";
                       islw::destruct(pwqp);
             // std::cout<<islw::to_c_string(isl_union_pw_qpolynomial_to_polynomial()
             // read_ref_cards_.back())<<"\n------\n";
@@ -985,9 +992,9 @@ class Statement {
             std::string iname = join(iter_names(tmp_sd), ",");
             islw::destruct(tmp_sd);
             read_ref_macro_args_.push_back("(" + iname + ")");
-            std::cerr << "RR MACRO= #define " << read_ref_macro_name(i)
-                      << "     "<< read_ref_macro_args_.back() 
-                      <<"    "<<islw::to_string(read_ref_cards_[i])<<"\n";
+            // std::cerr << "RR MACRO= #define " << read_ref_macro_name(i)
+            //           << "     "<< read_ref_macro_args_.back() 
+            //           <<"    "<<islw::to_string(read_ref_cards_[i])<<"\n";
         }
         construct_read_ref_macro_exprs();
     }
@@ -999,9 +1006,9 @@ class Statement {
         std::string iname = join(iter_names(tmp_sd), ",");
         islw::destruct(tmp_sd);
         write_ref_macro_args_ = "(" + iname + ")";
-        std::cerr << "WR MACRO= #define " << write_ref_macro_name() << "     "
-                  << write_ref_macro_args_ << "    "
-                  << islw::to_string(write_ref_card_) << "\n";
+        // std::cerr << "WR MACRO= #define " << write_ref_macro_name() << "     "
+        //           << write_ref_macro_args_ << "    "
+        //           << islw::to_string(write_ref_card_) << "\n";
         construct_write_ref_macro_exprs();
     }
 

@@ -77,6 +77,23 @@ class ArrayInfo {
         return ret;
     }
 
+    std::string macro_undefs() const {
+        std::string ret;
+        ret += id_encode_macro_undef();
+        for(int i = 0; i < ndim(); i++) {
+            ret += dim_encode_macro_undef(i);
+        }
+        ret += ver_encode_macro_undef();
+        ret += encode_macro_undef();
+        ret += id_decode_macro_undef();
+        for(int i = 0; i < ndim(); i++) {
+            ret += dim_decode_macro_undef(i);
+        }
+        ret += ver_decode_macro_undef();
+        ret += decode_macro_undefn();
+        return ret;
+    }
+
     std::string global_decls() const {
         std::string ret;
         // ret += "unsigned long long " + id_bitcount_variable() + ", " +
@@ -578,6 +595,14 @@ class ArrayPack {
         std::string ret;
         for(const auto& i : info_) {
             ret += i.second.macro_defns();
+        }
+        return ret;
+    }
+
+    std::string macro_undefs() const {
+        std::string ret;
+        for(const auto& i : info_) {
+            ret += i.second.macro_undefs();
         }
         return ret;
     }

@@ -38,57 +38,6 @@ CompilerInstance* pTheCompInst_g;
 
 int ParseScop(string fileName, string prolog, string epilog, string outputFileName);
 
-void GatherStmtVarIds(vector<std::string>& stmtVarIds, struct pet_expr* expr, isl_set* domainSet){
-  if (pet_expr_get_type(expr) == pet_expr_op){
-    if (pet_expr_op_get_type(expr) == pet_op_assume
-        || pet_expr_op_get_type(expr) == pet_op_kill 
-        || pet_expr_op_get_type(expr) == pet_op_assume 
-        //|| pet_expr_op_get_type(expr) == pet_op_cond
-        || pet_expr_op_get_type(expr) == pet_op_last
-        ) {
-          pet_expr_free(expr);
-          return;
-        }
-    stmtVarIds.push_back(pet_op_str(pet_expr_op_get_type(expr)));
-    // GatherStmtOpIds(stmtVarIds, expr);
-  }
-
-  if (pet_expr_get_type(expr) == pet_expr_access){
-    if(pet_expr_access_is_write(expr)){
-      isl_map* may_write = isl_map_from_union_map(pet_expr_access_get_may_write(expr));
-      isl_map* wmap = isl_map_intersect_domain(may_write,isl_set_copy(domainSet));
-      
-      const char* wchar = isl_map_get_tuple_name(wmap, isl_dim_out);
-      if (wchar) stmtVarIds.push_back(string(wchar));
-      islw::destruct(wmap);
-    }
-
-    if(pet_expr_access_is_read(expr)){
-      isl_map* may_read = isl_map_from_union_map(pet_expr_access_get_may_read(expr));
-      isl_map* rmap = isl_map_intersect_domain(may_read,isl_set_copy(domainSet));
-
-      const char* rchar = isl_map_get_tuple_name(rmap, isl_dim_out);
-      if(rchar) stmtVarIds.push_back(rchar);
-      islw::destruct(rmap);
-    }
-  }else if (pet_expr_get_type(expr) == pet_expr_int){
-    isl_val* ival = pet_expr_int_get_val(expr);
-    string int_str = std::to_string(stod(std::to_string(isl_val_sgn(ival))));
-    islw::destruct(ival); 
-    //cout << "integer: " << int_str << endl;
-    stmtVarIds.push_back(int_str);
-  }else if (pet_expr_get_type(expr) == pet_expr_double){
-    const char* double_char = pet_expr_double_get_str(expr); 
-    // cout << "pet double:" << double_char  << endl;
-    if(double_char) stmtVarIds.push_back(std::to_string(stod(double_char))); 
-  }
-
-  for(int i=0; i<pet_expr_get_n_arg(expr); i++) {
-    GatherStmtVarIds(stmtVarIds, pet_expr_get_arg(expr,i), domainSet);
-  }
-  pet_expr_free(expr);
-}
-
 struct PdLoc {
         PdLoc() : end(0) {}
 

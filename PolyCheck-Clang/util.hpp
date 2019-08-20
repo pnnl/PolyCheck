@@ -36,7 +36,7 @@ inline std::vector<std::string> iter_names(isl_set* iset) {
 
 inline std::vector<std::string> iter_names(isl_space* space) {
     std::vector<std::string> ret;
-    std::cerr << "SPACE ndim=" << isl_space_dim(space, isl_dim_set) << "\n";
+    // std::cerr << "SPACE ndim=" << isl_space_dim(space, isl_dim_set) << "\n";
     for(size_t j = 0; j < isl_space_dim(space, isl_dim_set); j++) {
         const char* iname = isl_space_get_dim_name(space, isl_dim_set, j);
         if(iname != nullptr)
