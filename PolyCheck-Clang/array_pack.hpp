@@ -79,18 +79,18 @@ class ArrayInfo {
 
     std::string macro_undefs() const {
         std::string ret;
-        ret += id_encode_macro_undef();
+        ret += "#undef " + id_encode_macro_name() + "\n";
         for(int i = 0; i < ndim(); i++) {
-            ret += dim_encode_macro_undef(i);
+            ret += "#undef " + dim_encode_macro_name(i) + "\n";
         }
-        ret += ver_encode_macro_undef();
-        ret += encode_macro_undef();
-        ret += id_decode_macro_undef();
+        ret += "#undef " + ver_encode_macro_name() + "\n";
+        ret += "#undef " + encode_macro_name() + "\n";
+        ret += "#undef " + id_decode_macro_name() + "\n";
         for(int i = 0; i < ndim(); i++) {
-            ret += dim_decode_macro_undef(i);
+            ret += "#undef " + dim_decode_macro_name(i) + "\n";
         }
-        ret += ver_decode_macro_undef();
-        ret += decode_macro_undefn();
+        ret += "#undef " + ver_decode_macro_name() + "\n";
+        ret += "#undef " + decode_macro_name() + "\n";
         return ret;
     }
 

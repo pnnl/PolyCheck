@@ -95,7 +95,8 @@ class Prolog {
 
     std::string to_string() const {
         return "#include <assert.h>\n int _diff = 0;\n{\n" +
-               array_pack_.entry_function_preamble() + str_ + "\n}\n";
+               array_pack_.entry_function_preamble() + str_ +
+               array_pack_.macro_undefs() + "\n}\n";
     }
 
     private:
@@ -178,7 +179,8 @@ class Epilog {
 
     std::string to_string() const {
         return "{\n" + array_pack_.nonentry_function_preamble() + str_ +
-               "\n assert(_diff == 0); \n}\n";
+               "\n assert(_diff == 0);\n" + array_pack_.macro_undefs() +
+               "\n}\n";
     }
 
     private:
