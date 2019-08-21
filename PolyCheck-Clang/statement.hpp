@@ -82,6 +82,10 @@ class Statement {
     Statement(const Statement& stmt) : stmt_id_{stmt.stmt_id_} {
         domain_    = islw::copy(stmt.domain_);
 
+        R_ = islw::copy(stmt.R_);
+        W_ = islw::copy(stmt.W_);
+        isched_ = islw::copy(stmt.isched_);
+        S_ = islw::copy(stmt.S_);
         read_array_names_ = stmt.read_array_names_;
         array_sizes_ = stmt.array_sizes_;
         for(const auto& rr : stmt.read_refs_) {
@@ -124,10 +128,10 @@ class Statement {
     }
 
     Statement(int stmt_id, pet_scop* pscop) : stmt_id_{stmt_id} {
-        isl_union_map* R     = pet_scop_get_may_reads(pscop);
-        isl_union_map* W     = pet_scop_get_may_writes(pscop);
-        isl_schedule* isched = pet_scop_get_schedule(pscop);
-        isl_union_map* S     = isl_schedule_get_map(isched);
+        R_      = pet_scop_get_may_reads(pscop);
+        W_      = pet_scop_get_may_writes(pscop);
+        isched_ = pet_scop_get_schedule(pscop);
+        S_      = isl_schedule_get_map(isched_);
 
         domain_ = islw::copy(pscop->stmts[stmt_id_]->domain);
 
@@ -160,7 +164,7 @@ class Statement {
         // if(write_ref_) {
         //     std::cout<<"WRITE REF FOUND\n";
         // }
-        gather_card(S, R,W);
+        gather_card(S_, R_, W_);
         assert(read_refs_.size() == read_ref_cards_.size());
         construct_read_ref_macros();
         construct_read_dim_maps();
@@ -169,10 +173,11 @@ class Statement {
         construct_write_dim_maps();
         construct_write_dim_macro_args();
         construct_sinstance_macros();
-        islw::destruct(R, W, isched, S);
+        //islw::destruct(R, W, isched, S);
     }
 
     ~Statement() {
+        islw::destruct(R_, W_, isched_, S_);
         islw::destruct(domain_);
         for(auto rr: read_refs_) {
             islw::destruct(rr);
@@ -194,6 +199,10 @@ class Statement {
         for(auto &wdm: write_dim_maps_) {
             islw::destruct(wdm);
         }
+    }
+
+    std::string name() const {
+        return std::string{"_s"} + std::to_string(stmt_id_);
     }
 
     static std::string inline_checks(
@@ -427,10 +436,42 @@ class Statement {
         return ret;
     }
 
+    std::string inline_check_template() const {
+      ArrayPack array_pack_{R_, W_};
+        std::string str;
+        const std::string diff_var = "[[_diff]]";
+        const std::string sname = name();
+        assert(read_refs_.size() == array_sizes_.size());
+
+        str = "{\n";
+        if(write_ref_) {
+            for(auto j = 0; j < write_array_size_; j++) {
+                std::stringstream ss;
+                ss << "int " << write_ref_dim_string(j) << +" = "
+                
+                   << write_dim_id_macro_name(j) << "([[_" << sname << "_w_d"
+                   << j << "]]);\n";
+                str += ss.str();
+            }
+        }
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            for(auto j = 0; j < array_sizes_[i]; j++) {
+              std::stringstream ss;
+              ss << "int " << read_ref_dim_string(i, j) << " = "
+                 << read_ref_macro_name(i) << "([[_" + sname + "_r" << i << "_d"
+                 << j << "]]);\n";
+              str += ss.str();
+            }
+        }
+
+        str += "\n}\n";
+        return str;
+    }
+
     std::string inline_checks(std::vector<std::string> stmtVecIters, 
       const std::string& diff_var="_diff") const {
         std::string str   = "{\n";
-        std::string sname = statement_name();
+        std::string sname = name();
         assert(read_refs_.size() == array_sizes_.size());
         assert(read_refs_.size() == read_array_names_.size());
 
@@ -597,12 +638,8 @@ class Statement {
         }
     }
 
-    std::string statement_name() const {
-        return std::string{"_s"} + std::to_string(stmt_id_);
-    }
-
     std::string read_ref_dim_string(int read_ref_id, int dim_id) const {
-        return statement_name() + "_r" + std::to_string(read_ref_id) + "_" +
+        return name() + "_r" + std::to_string(read_ref_id) + "_" +
                std::to_string(dim_id);
     }
 
@@ -622,7 +659,7 @@ class Statement {
     }
 
     std::string write_ref_dim_string(int dim_id) const {
-        return statement_name() + "_w_" + std::to_string(dim_id);
+        return name() + "_w_" + std::to_string(dim_id);
     }
 
     std::string write_ref_string() const {
@@ -656,7 +693,7 @@ class Statement {
     std::string sinstance_dim_string(int id) const {
       assert(id>=0);
       assert(id < dim());
-      return statement_name() + "_i"+std::to_string(id);
+      return name() + "_i"+std::to_string(id);
     }
 
     std::string sinstance_args_decl_string() const {
@@ -1096,7 +1133,11 @@ class Statement {
       return isl_set_n_dim(domain_);
     }
 
-    int stmt_id_; //id of the statement from PET
+    isl_union_map* R_;
+    isl_union_map* W_;
+    isl_schedule* isched_;
+    isl_union_map* S_;
+    int stmt_id_;     // id of the statement from PET
     isl_set* domain_; //statement domain
     std::vector<isl_map*> read_refs_; //maps to read array references
     std::vector<std::string> read_array_names_; //names of all array refs on the RHS

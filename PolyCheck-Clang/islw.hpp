@@ -6,6 +6,7 @@
 #include <isl/union_set.h>
 #include <isl/set.h>
 #include <isl/map.h>
+#include <isl/schedule.h>
 #include <isl/list.h>
 #include <isl/printer.h>
 #include <isl/point.h>
@@ -350,6 +351,11 @@ isl_union_set* copy(isl_union_set* uset) {
 template<>
 isl_set* copy(isl_set* iset) {
     return iset ? isl_set_copy(iset) : nullptr;
+}
+
+template<>
+isl_schedule* copy(isl_schedule* obj) {
+    return obj ? isl_schedule_copy(obj) : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

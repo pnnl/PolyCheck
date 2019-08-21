@@ -135,7 +135,7 @@ class ArrayInfo {
         return ret;
     }
 
-    protected:
+    //protected:
     std::string check_total_size_stmt() const {
         if(ndim() > 0) {
             return "assert(" + dim_bitoffset_variable(ndim() - 1) + " + " +
