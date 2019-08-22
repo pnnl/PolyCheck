@@ -403,6 +403,11 @@ int main(int argc, char* argv[]) {
     // }
     std::cout<<"-------\n";
 
+    for(const auto stmt : stmts) {
+        std::cout << "//TEMPLATE for statement " << stmt.name()
+                  << ":\n---------\n"
+                  << stmt.inline_check_template() << "---------\n";
+    }
     ParseScop(target, stmts, prologue, epilogue, output_file_name(target));
     stmts.clear();
 

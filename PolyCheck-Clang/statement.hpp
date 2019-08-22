@@ -218,7 +218,7 @@ class Statement {
       for(const auto& v : vars) {
         inits.push_back(v+"=0");
       }
-      ret += "int "+join(inits, ",")+";\n";
+      ret += "uint64_t "+join(inits, ",")+";\n";
       for(int i=0; i<n; i++) {
         ret += stmts[i]->inline_checks(stmtVecItersList[i], vars[i]);
       }
@@ -242,6 +242,7 @@ class Statement {
                 //           << "\n";
             }
         }
+#if 0 //removing write reference from statement instance macro
         if(write_ref_) {
             // std::cerr << "^^WR:" << islw::to_string(write_ref_) << "\n";
             if(stmt_to_refs == nullptr) {
@@ -255,18 +256,20 @@ class Statement {
                 //           << "\n";
             }
         }
+#endif
         std::vector<std::string> ref_args;
         for(size_t r = 0; r < read_refs_.size(); r++) {
             for(auto d = 0; d < array_sizes_[r]; d++) {
                 ref_args.push_back(read_ref_dim_string(r, d));
             }
         }
+#if 0 //removing write reference from statement instance macro
         if(write_ref_) {
             for(auto d = 0; d < write_array_size_; d++) {
                 ref_args.push_back(write_ref_dim_string(d));
             }
         }
-
+#endif
         // std::cerr << "S2R before adding version number relations:"
         //           << islw::to_string(stmt_to_refs) << "\n";
         // add version number expressions if they are affine
@@ -437,34 +440,136 @@ class Statement {
     }
 
     std::string inline_check_template() const {
-      ArrayPack array_pack_{R_, W_};
+      ArrayPack array_pack{R_, W_};
         std::string str;
         const std::string diff_var = "[[_diff]]";
         const std::string sname = name();
         assert(read_refs_.size() == array_sizes_.size());
 
         str = "{\n";
-        if(write_ref_) {
-            for(auto j = 0; j < write_array_size_; j++) {
+        str += array_pack.entry_function_preamble();
+
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            std::string args = "[[_" + sname + "_r" + std::to_string(i) + "]]";
+            for(auto j = 0; j < array_sizes_[i]; j++) {
                 std::stringstream ss;
-                ss << "int " << write_ref_dim_string(j) << +" = "
-                
-                   << write_dim_id_macro_name(j) << "([[_" << sname << "_w_d"
-                   << j << "]]);\n";
+                ss << "uint64_t " << read_ref_dim_string(i, j) << " = "
+                   << array_pack.dim_decode_macro_use(read_array_names_[i], j,
+                                                      args)
+                   << ";\n";
                 str += ss.str();
             }
+            std::stringstream ss;
+            ss << "uint64_t " << read_ref_ver_string(i) << " = ("
+               << array_pack.ver_decode_macro_use(read_array_names_[i], args)
+               << ")- 1;\n";
+            str += ss.str();
+        }
+
+        str += "\n";
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            str += read_ref_macro_def_string(i);
         }
         for(size_t i = 0; i < read_refs_.size(); i++) {
             for(auto j = 0; j < array_sizes_[i]; j++) {
-              std::stringstream ss;
-              ss << "int " << read_ref_dim_string(i, j) << " = "
-                 << read_ref_macro_name(i) << "([[_" + sname + "_r" << i << "_d"
-                 << j << "]]);\n";
-              str += ss.str();
+                str += read_dim_id_macro_def_string(i, j);
             }
         }
+        str += write_ref_macro_def_string();
+        for(auto j = 0; j < write_array_size_; j++) {
+            str += write_dim_id_macro_def_string(j);
+        }
+        str += "\n";
+        for(auto i = 0; i < dim(); i++) {
+            str += sinstance_macro_decl_string(i);
+        }
+        str += "\n";
+        //str += sinstance_args_decl_string() + "\n";
+        //determine statement instance
+        std::vector<std::string> sinstance_argsv;
+        for(int j = 0; j < read_refs_.size(); j++) {
+            for(int k = 0; k < array_sizes_[j]; k++) {
+                sinstance_argsv.push_back(read_ref_dim_string(j, k));
+            }
+        }
+        for(int j = 0; j < read_refs_.size(); j++) {
+            sinstance_argsv.push_back(read_ref_ver_string(j));
+        }
+        std::string sinstance_args = "(" + join(sinstance_argsv, ", ") + ")";
 
-        str += "\n}\n";
+        for(int i = 0; i < dim(); i++) {
+            str += "uint64_t " + sinstance_dim_string(i) + " = " +
+                   sinstance_macro_name(i) + sinstance_args + ";\n";
+        }
+
+        //checks for read dim ids
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            for(auto j = 0; j < array_sizes_[i]; j++) {
+                str += diff_var+" |= " + read_dim_id_macro_name(i, j) +
+                       "(" + sinstance_args_string() + ")" + 
+                       " ^ " +
+                       read_ref_dim_string(i, j) +
+                       ";\n";
+            }
+        }
+        str += "\n";
+        //checks for read version numbers
+        for(auto i = 0U; i < read_refs_.size(); i++) {
+            str += diff_var + " |= " + read_ref_macro_name(i) + "(" +
+                   sinstance_args_string() + ")" + " ^ " +
+                   read_ref_ver_string(i) + ";\n";
+        }
+        str += "\n";
+
+        if(write_ref_ != nullptr) {
+            // SK: store version number rather than counter
+            str += "if(" + diff_var + "==0) {\n";
+
+            std::string args = "[[_" + sname + "_w]]";
+            for(auto j = 0; j < write_array_size_; j++) {
+                std::stringstream ss;
+                ss << "uint64_t " << write_ref_dim_string(j) << " = "
+                   << write_dim_id_macro_name(j) << "("
+                   << sinstance_args_string() << ")"
+                   << ";\n";
+                str += ss.str();
+            }
+            std::stringstream ss;
+            ss << "uint64_t " << write_ref_ver_string() << " = "
+               << write_ref_macro_name() << "(" << sinstance_args_string()
+               << ")"
+               << ";\n";
+            str += ss.str();
+
+            std::vector<std::string> wargs;
+            for(int i=0; i<write_array_size_; i++) {
+              wargs.push_back(write_ref_dim_string(i));
+            }
+            wargs.push_back("(1+("+write_ref_ver_string()+"))");
+
+            str += "[[__" + sname + "_w]] = " +
+                    array_pack.encode_string(write_array_name_, wargs) +
+                    ";\n}\n";
+        }
+        str += "\n";
+        for(auto i = 0; i < dim(); i++) {
+            str += sinstance_macro_undef_string(i);
+        }
+        str += "\n";
+        for(size_t i = 0; i < read_refs_.size(); i++) {
+            for(auto j = 0; j < array_sizes_[i]; j++) {
+                str += read_dim_id_macro_undef_string(i, j);
+            }
+        }
+        for(auto i = 0U; i < read_refs_.size(); i++) {
+            str += read_ref_macro_undef_string(i);
+        }
+        for(auto j = 0; j < write_array_size_; j++) {
+            str += write_dim_id_macro_undef_string(j);
+        }
+        str += write_ref_macro_undef_string();
+        str += array_pack.macro_undefs();
+        str += "\n}/*"+diff_var+"*/\n";
         return str;
     }
 
@@ -479,14 +584,14 @@ class Statement {
 
         if(write_ref_) {
             for(auto j = 0; j < write_array_size_; j++) {
-                str += "int " + write_ref_dim_string(j)+
+                str += "uint64_t " + write_ref_dim_string(j)+
                        " = " + stmtVecIters[si++] +
                        ";\n";
             }
         }
         for(size_t i = 0; i < read_refs_.size(); i++) {
             for(auto j=0; j<array_sizes_[i]; j++) {
-                str += "int " +  read_ref_dim_string(i, j) +
+                str += "uint64_t " +  read_ref_dim_string(i, j) +
                 //  sname + "__" + std::to_string(i) + "__" +
                 //        std::to_string(j) + 
                        " = " + stmtVecIters[si++]+";\n";
@@ -525,7 +630,7 @@ class Statement {
             str += diff_var + " |= " + read_ref_macro_name(i) + "(" +
                    sinstance_args_string() + ")" +
                    //  sname + "__" + std::to_string(i) + "(...)" +
-                   " ^ " + "(int)(" + read_ref_string(i) + ");\n";
+                   " ^ " + "(uint64_t)(" + read_ref_string(i) + ");\n";
             //         read_array_names_[i];
             // if(array_sizes_[i] != 0) {
             //     str += "[" + sname + "__" + std::to_string(i) + "__" +
@@ -638,9 +743,17 @@ class Statement {
         }
     }
 
+    std::string write_ref_ver_string() const {
+        return name() + "_w_v";
+    }
+
     std::string read_ref_dim_string(int read_ref_id, int dim_id) const {
         return name() + "_r" + std::to_string(read_ref_id) + "_" +
                std::to_string(dim_id);
+    }
+
+    std::string read_ref_ver_string(int read_ref_id) const {
+        return name() + "_r" + std::to_string(read_ref_id) + "_v";
     }
 
     std::string read_ref_string(int read_ref_id) const {
@@ -699,7 +812,7 @@ class Statement {
     std::string sinstance_args_decl_string() const {
         std::string ret;
         for(int i = 0; i < dim(); i++) {
-            ret += "int " + sinstance_dim_string(i) + " = " +
+            ret += "uint64_t " + sinstance_dim_string(i) + " = " +
                    sinstance_macro_name(i) + 
                     sinstance_macro_args_string(i)+";\n";
         }

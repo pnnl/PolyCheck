@@ -567,6 +567,22 @@ class ArrayPack {
         return info.ver_decode_macro_use(args);
     }
 
+    std::string dim_decode_macro_use(const std::string& array_name,
+            int dim, const std::string& args) const {
+        assert(info_.find(array_name) != info_.end());
+        const auto& info = info_.find(array_name)->second;
+        assert(dim >= 0);
+        assert(dim < info.ndim());
+        return info.dim_decode_macro_use(dim, args);
+    }
+
+    std::string id_decode_macro_use(const std::string& array_name,
+                                    const std::string& args) const {
+        assert(info_.find(array_name) != info_.end());
+        const auto& info = info_.find(array_name)->second;
+        return info.id_decode_macro_use(args);
+    }
+
     std::string global_decls() const {
         std::string ret;
         for(const auto& i : info_) {
