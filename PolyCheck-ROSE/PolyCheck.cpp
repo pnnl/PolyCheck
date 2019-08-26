@@ -1,21 +1,106 @@
-#include "PolyCheck.hpp"
-#include "Orchestrator.hpp"
-#include "DebugComputer.hpp"
-#include "LiveDataComputer.hpp"
-#include "UnusedComputer.hpp"
-#include "UnusedDeclComputer.hpp"
-#include "CodeParser.hpp"
+#include <string>
+#include <iostream>
+#include <regex>
+#include <cassert>
+#include <set>
+#include <map>
+
+#include <isl/ctx.h>
+#include <isl/union_map.h>
+#include <isl/union_set.h>
+#include <isl/set.h>
+#include <isl/map.h>
+#include <isl/printer.h>
+#include <isl/point.h>
+#include <isl/id.h>
+#include <isl/aff.h>
+#include <isl/polynomial.h>
+
 #include <polyopt/PolyOpt.hpp>
+#include <barvinok/isl.h>
 
-using std::cout;
-using std::endl;
+#include "PolyCheck.hpp"
 
-//./PolyCheck -rose:skipfinalCompileStep --polyopt-safe-math-func --polyopt-scop-pragmas-only
-// cholesky.c -target=cholesky.c -I$(polybench_include_path)
+std::string array_ref_string(isl_set* iset) {
+    std::string aref{isl_set_get_tuple_name(iset)};
+    return aref + "(" + join(iter_names(iset), ", ") + ")";
+}
 
+std::string array_ref_string_in_c(isl_set* iset) {
+    std::string aref{isl_set_get_tuple_name(iset)};
+    std::string idx = join(iter_names(iset), "][");
+    if (!idx.empty()) {
+        return aref + "[" + idx + "]";
+    } else {
+        return aref;
+    }
+}
 
-int main(int argc, char *argv[]) {
+//should be a lambda
+isl_stat fn_prolog_per_set(isl_set* set, void* user) {
+    std::string& str   = *(std::string*)user;
+    std::string prolog = islw::to_c_string(set);
+    std::string array_ref_str = array_ref_string(set) + ";";
+    std::string repl_str = array_ref_string_in_c(set) + "=0;";
+    str += replace_all(prolog, array_ref_str, repl_str);
+    islw::destruct(set);
+    return isl_stat_ok;
+}
 
+std::string prolog(isl_union_map* R, isl_union_map* W) {
+    std::string prolog;
+    isl_union_set* RW = isl_union_set_union(isl_union_map_range(islw::copy(R)),
+                                            isl_union_map_range(islw::copy(W)));
+    isl_union_set_foreach_set(RW, fn_prolog_per_set, &prolog);
+    prolog = "#include <assert.h>\n int _diff = 0;\n{\n" + prolog + "\n}\n";
+    islw::destruct(RW);
+    return prolog;
+}
+
+//should be a lambda
+isl_stat epilog_per_poly_piece(isl_set* set, isl_qpolynomial* poly, void *user) {
+  std::string& str = *(std::string*) user;
+  std::string set_code = islw::to_c_string(set);
+  std::string poly_code = islw::to_c_string(poly);
+  std::string array_ref_str = array_ref_string(set) + ";";
+  std::string repl_str      = "_diff |= ((int)" + array_ref_string_in_c(set) +
+                         ") ^ " + poly_code + ";";
+  str += replace_all(set_code, array_ref_str, repl_str);
+  islw::destruct(set);
+  islw::destruct(poly);
+  return isl_stat_ok;
+}
+
+//should be a lambda
+isl_stat epilog_per_poly(isl_pw_qpolynomial* pwqp, void *user) {
+  isl_pw_qpolynomial_foreach_piece(pwqp, epilog_per_poly_piece, user);
+  islw::destruct(pwqp);
+  return isl_stat_ok;
+}
+
+std::string epilog(isl_union_map* W) {
+    std::string epilog;
+    isl_union_pw_qpolynomial* WC =
+      isl_union_map_card(isl_union_map_reverse(islw::copy(W)));
+    epilog = "{\n";
+    isl_union_pw_qpolynomial_foreach_pw_qpolynomial(WC, epilog_per_poly,
+                                                    &epilog);
+    epilog += "\n assert(_diff == 0); \n";
+    epilog += "\n}\n";
+    islw::destruct(WC);
+    return epilog;
+}
+
+std::string output_file_name(std::string file_name) {
+    size_t pos = file_name.find_last_of("/");
+    if(pos == std::string::npos) {
+        return file_name.insert(0, "pc_");
+    } else {
+        return file_name.insert(pos+1, "pc_");
+    }
+}
+
+int main(int argc, char* argv[]) {
   // 1- Read PoCC options.
   // Create argv, argc from string argument list, by removing rose/edg
   // options.
@@ -61,127 +146,52 @@ int main(int argc, char *argv[]) {
   
   // For now --polyopt-scop-pragmas-only
 
-  for (auto x: polyopt_scops){
-     cout << "--------------scop--------------------\n";
-     cout << (x.first)->unparseToCompleteString() << endl;
-    cout << "--------------end scop--------------------\n";
-   }
+//   for (auto x: polyopt_scops){
+//      cout << "--------------scop--------------------\n";
+//      cout << (x.first)->unparseToCompleteString() << endl;
+//     cout << "--------------end scop--------------------\n";
+//    }
 
   assert(polyopt_scops.size() == 1);
   ROSE_ASSERT(project != NULL);
 
+  isl_ctx *ctx = isl_ctx_alloc();
+  PolyOptISLRepresentation isl_scop =
+    PolyOptConvertScopToISL(polyopt_scops[0].second);
 
-  //*****************Analyzing*********************
+  isl_union_map *R = isl_scop.scop_reads;
+  // Union of all access functions intersected with domain.
+  isl_union_map *W = isl_scop.scop_writes;
+  // Union of all schedules.
+  isl_union_map *S = isl_scop.scop_scheds;
 
-  Orchestrator fTOrchestrator; 
-  ReturnValues ftReturnValues = fTOrchestrator.drive(polyopt_scops);
+    std::cout << "#statements=" << scop->n_stmt << "\n";
 
-  /// Match statements in scop and insert corresponding checker code
-  ParseScop(transformed_input_source, ftReturnValues);
-
-#if 0
-  /// Collect Statements in orig/opt scops to compare syntactically
-  // Create the traversal object
-  ScopTraversal printScops;
-  // Call the traversal starting at the project node of the AST
-  printScops.traverseInputFiles(project, preorder);
-
-  const std::string opt_path = "polyopt_runs/rose_";
-  std::string opt_src_file;
-  int arg_no = 0, src_pos = 0;
-  for (auto clo : args) {
-    if (CommandlineProcessing::isSourceFilename(clo)) {
-      src_pos = arg_no;
-      // replace filename with rose_test.c
-      std::string base_filename = clo.substr(clo.find_last_of("/\\") + 1);
-      std::string::size_type const p(base_filename.find_last_of('.'));
-      std::string optimized_source_file = base_filename.substr(0, p);
-      opt_src_file = opt_path + optimized_source_file + ".c";
+    //std::vector<std::string> inline_checks;
+    std::vector<Statement> stmts;
+    {
+        for(int i = 0; i < scop->n_stmt; i++) {
+            stmts.push_back(Statement{i, scop});
+        }
+        // for(const auto& stmt : stmts) {
+        //     inline_checks.push_back(stmt.inline_checks());
+        // }
     }
-    arg_no++;
-  }
 
-  if (!CommandlineProcessing::isSourceFilename(opt_src_file))
-    assert(0);
-  args[src_pos] = opt_src_file;
-  //  for (auto clo : args)
-  //    cout << clo << endl;
-  SgProject *transformed = frontend(args);
-  ROSE_ASSERT(transformed != NULL);
+    const std::string prologue = prolog(R, W) + "\n";
+    const std::string epilogue = epilog(W);
+    std::cout << "Prolog\n------\n" << prologue << "\n----------\n";
+    std::cout << "Epilog\n------\n" << epilogue << "\n----------\n";
+    //std::cout << "Inline checks\n------\n";
+    // for(size_t i=0; i<inline_checks.size(); i++) {
+    //     std::cout<<"  Statement "<<i<<"\n  ---\n"<<inline_checks[i]<<"\n";
+    // }
+    std::cout<<"-------\n";
 
-  // Create the traversal object
-  ScopTraversal printOptScops;
-  printOptScops.source_flag = 1;
-  // Call the traversal starting at the project node of the AST
-  printOptScops.traverseInputFiles(transformed, preorder);
-
-  compareScops();
-  // return backend(project);
-  #endif
-  return 0;
+    ParseScop(target, stmts, prologue, epilogue, output_file_name(target));
+    stmts.clear();
+    pet_scop_free(scop);
+    isl_schedule_free(isched);
+    islw::destruct(R, W, S, ctx);
+    return 0;
 }
-
-
-#if 0
-using ScopStmtVector = std::map<int, std::vector<SgNode *>>;
-ScopStmtVector collectScopStatements;    // map with scop number
-ScopStmtVector collectOptScopStatements; // map with scop number
-
-void collect_scop_statements(
-    int scop_number, MatchResult &assign_matches,
-    std::map<int, std::vector<SgNode *>> &collectScopStatements) {
-  for (MatchResult::iterator i = assign_matches.begin();
-       i != assign_matches.end(); i++) {
-    for (auto p : (*i)) {
-      SgNode *anode = p.second;
-      if (!isSgForInitStatement(anode->get_parent()->get_parent()))
-        collectScopStatements[scop_number].push_back(anode);
-    }
-  }
-}
-
-void printScopStmts(ScopStmtVector &collectScopStatements) {
-  for (auto i : collectScopStatements) {
-    cout << "Scop " << i.first << ":\n";
-    for (auto s : i.second) {
-      if (isSgAssignOp(s) || isSgPlusAssignOp(s) || isSgMultAssignOp(s) ||
-          isSgMinusAssignOp(s) || isSgDivAssignOp(s)) {
-        // if(std::is_base_of<SgCompoundAssignOp*,decltype(s)>::value)
-        cout << (s)->unparseToString() << endl;
-      } else
-        assert(0);
-    }
-    cout << "----------------------------------\n";
-  }
-}
-
-
- void ScopTraversal::visit(SgNode *node) {
-   if (SgPragmaDeclaration *pragma = isSgPragmaDeclaration(node)) {
-     const string pragmaName = pragma->get_pragma()->get_pragma();
-     // cout << pragmaName << endl;
-     if ((pragmaName.size() == 4) && (pragmaName.compare(0, 4, "scop") == 0)) {
-       SgStatement *stmt = SageInterface::getNextStatement(pragma);
-       this->scop_number += 1;
-
-       while (!isSgPragmaDeclaration(stmt)) {
-         /// @todo lhs can be a scalar too.
-         // for (auto assign_type : record_pc_assign_nodes) {
-         MatchResult assign_matches =
-             this->matcher.performMatching(record_pc_assign_nodes, stmt);
-         if (this->source_flag == 0)
-           collect_scop_statements(this->scop_number, assign_matches,
-                                   collectScopStatements);
-         else
-           collect_scop_statements(this->scop_number, assign_matches,
-                                   collectOptScopStatements);
-         // }
-         stmt = SageInterface::getNextStatement(stmt);
-       } // end while
-       // cout << stmt->unparseToString() << endl; //#pragma endscop
-     } // end begin scop
-   }   // end scop
-
- } // end visitor
-
-#endif
