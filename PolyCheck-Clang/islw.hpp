@@ -6,6 +6,7 @@
 #include <isl/union_set.h>
 #include <isl/set.h>
 #include <isl/map.h>
+#include <isl/space.h>
 #include <isl/schedule.h>
 #include <isl/list.h>
 #include <isl/printer.h>

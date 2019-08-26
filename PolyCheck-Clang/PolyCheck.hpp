@@ -57,9 +57,9 @@ public:
     SourceManager &SM = PP.getSourceManager();
 
     /*Standard checking begins*/
-    if (SM.getFileOffset(fs->getLocStart()) <= loc.start)
+    if (SM.getFileOffset(fs->getBeginLoc()) <= loc.start)
       return true;
-    if (SM.getFileOffset(fs->getLocEnd()) >= loc.end)
+    if (SM.getFileOffset(fs->getEndLoc()) >= loc.end)
     {
       if (FaultTolerantRegionStarted == true)
       {
@@ -248,14 +248,14 @@ public:
   {
     /*Standard checking begins*/
     SourceManager &SM = PP.getSourceManager();
-    if (SM.getFileOffset(b->getLocStart()) <= loc.start)
+    if (SM.getFileOffset(b->getBeginLoc()) <= loc.start)
       return true;
-    if (SM.getFileOffset(b->getLocEnd()) >= loc.end)
+    if (SM.getFileOffset(b->getEndLoc()) >= loc.end)
     {
 	    if (FaultTolerantRegionStarted == true)
 	    {
 	      FaultTolerantRegionStarted = false;
-	      TheRewriter.InsertTextBefore(b->getLocStart(), "// Fault tolerance ends here\n");
+	      TheRewriter.InsertTextBefore(b->getBeginLoc(), "// Fault tolerance ends here\n");
 	    }// if (FaultTolerantRegionStarted == true)
       return true;
     }
@@ -303,16 +303,17 @@ public:
           TraverseExprToGetStmtIters (rhs, stmtVecIters, stmtVarIds);
 
           // comment the orginal stmt
-          SourceLocation commentLocation = b->getLocStart();
+          SourceLocation commentLocation = b->getBeginLoc();
           TheRewriter.InsertText(commentLocation, "/* ", true, true);
 
           // Insert location for each statement
           SourceManager &src_mgr = pTheCompInst_g->getSourceManager();
           LangOptions &clangopts = pTheCompInst_g->getLangOpts();
-          SourceLocation END = b->getLocEnd();
+          SourceLocation END = b->getEndLoc();
           if(src_mgr.isMacroBodyExpansion(END)){
              auto csr = src_mgr.getExpansionRange(END);
-             END = csr.second;
+             //END = csr.second;
+             END = csr.getEnd();
           }
 
 	        int offset = Lexer::MeasureTokenLength(END,
@@ -354,11 +355,11 @@ public:
   {
       SourceManager &SM = PP.getSourceManager();
 
-      if (SM.getFileOffset(s->getLocStart()) <= loc.start)
+      if (SM.getFileOffset(s->getBeginLoc()) <= loc.start)
         return true;
 
-      // else if(SM/getFileOffset(s->getLocStart())>loc.start)
-      if (SM.getFileOffset(s->getLocEnd()) >= loc.end)
+      // else if(SM/getFileOffset(s->getBeginLoc())>loc.start)
+      if (SM.getFileOffset(s->getEndLoc()) >= loc.end)
       {
 	      if (FaultTolerantRegionStarted == true)
 	      {
@@ -367,16 +368,16 @@ public:
         return true;
       }
 
-      // else if(SM.getFileOffset(s->getLocStart())>loc.start&&SM.getFileOffset(s->getLocEnd()) < loc.end)
+      // else if(SM.getFileOffset(s->getBeginLoc())>loc.start&&SM.getFileOffset(s->getEndLoc()) < loc.end)
       if (FaultTolerantRegionStarted == false)
       {
       	FaultTolerantRegionStarted = true;
 
         // ADD Prologue
 
-            TheRewriter.InsertTextAfter(s->getLocStart(), "// Prologue\n");
-            TheRewriter.InsertTextAfter(s->getLocStart(), Prologue);
-            TheRewriter.InsertTextAfter(s->getLocStart(), "\n");
+            TheRewriter.InsertTextAfter(s->getBeginLoc(), "// Prologue\n");
+            TheRewriter.InsertTextAfter(s->getBeginLoc(), Prologue);
+            TheRewriter.InsertTextAfter(s->getBeginLoc(), "\n");
       }// if (FaultTolerantRegionStarted == false)
 
       //static int divid = 0;
@@ -385,18 +386,18 @@ public:
 	      IfStmt *IfStatement = cast<IfStmt>(s);
 	      Stmt *Then = IfStatement->getThen();
 
-	      // PresumedLoc PLoc = pTheCompInst_g->getSourceManager().getPresumedLoc(IfStatement->getLocStart());//, 1);
+	      // PresumedLoc PLoc = pTheCompInst_g->getSourceManager().getPresumedLoc(IfStatement->getBeginLoc());//, 1);
 	      // cout << "Line number is " << PLoc.getLine() << endl;
-	      // cout << "Line number is " << pTheCompInst_g->getSourceManager().getSpellingLineNumber(IfStatement->getLocStart(), 0) << endl;
-	      // cout << "Line number is " << pTheCompInst_g->getSourceManager().getExpansionLineNumber(IfStatement->getLocStart(), 0) << endl;
-	      // cout << "Line At the end: number is " << pTheCompInst_g->getSourceManager().getPresumedLineNumber(IfStatement->getLocStart(), 0) << endl;
+	      // cout << "Line number is " << pTheCompInst_g->getSourceManager().getSpellingLineNumber(IfStatement->getBeginLoc(), 0) << endl;
+	      // cout << "Line number is " << pTheCompInst_g->getSourceManager().getExpansionLineNumber(IfStatement->getBeginLoc(), 0) << endl;
+	      // cout << "Line At the end: number is " << pTheCompInst_g->getSourceManager().getPresumedLineNumber(IfStatement->getBeginLoc(), 0) << endl;
 	      // cout << "-----------------------\n";
 
 	      stringstream str_before;
 	      //divid++;
-	      TheRewriter.InsertText(Then->getLocStart(), str_before.str(), true, true);
+	      TheRewriter.InsertText(Then->getBeginLoc(), str_before.str(), true, true);
 
-	      SourceLocation END = Then->getLocEnd();
+	      SourceLocation END = Then->getEndLoc();
 	      int offset = Lexer::MeasureTokenLength(END, pTheCompInst_g->getSourceManager(),	pTheCompInst_g->getLangOpts()) + 1;
 	      SourceLocation END1 = END.getLocWithOffset(offset);
 
@@ -407,12 +408,12 @@ public:
 
 	      if (Else)
 	      {
-	        // SourceLocation END = Else->getLocEnd();
+	        // SourceLocation END = Else->getEndLoc();
 	        // int offset = Lexer::MeasureTokenLength(END, pTheCompInst_g->getSourceManager(),
 	      					//  pTheCompInst_g->getLangOpts()) + 1;
           // SourceLocation END1 = END.getLocWithOffset(offset);
 
-	        TheRewriter.InsertText(Else->getLocStart(), "// the 'else' part\n", true, true);
+	        TheRewriter.InsertText(Else->getBeginLoc(), "// the 'else' part\n", true, true);
 	      }
       }
 
@@ -441,7 +442,7 @@ public:
 
 	  //     stringstream SSAfter;
 	  //     SSAfter << "// End function " << FuncName << "\n";
-	  //     ST = FunBody->getLocEnd().getLocWithOffset(1);
+	  //     ST = FunBody->getEndLoc().getLocWithOffset(1);
 	  //     TheRewriter.InsertText(ST, SSAfter.str(), true, true);
     //  }
 
@@ -478,9 +479,9 @@ public:
         continue;
       SourceManager &SM = PP.getSourceManager();
 
-      if (SM.getFileOffset(fd->getLocStart()) > loc.end)
+      if (SM.getFileOffset(fd->getBeginLoc()) > loc.end)
         continue;
-      if (SM.getFileOffset(fd->getLocEnd()) < loc.start)
+      if (SM.getFileOffset(fd->getEndLoc()) < loc.start)
         continue;
       Visitor.TraverseDecl(*b);
     }

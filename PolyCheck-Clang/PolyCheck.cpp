@@ -327,12 +327,13 @@ unsigned num_bits(uint64_t v) {
 
 
 int main(int argc, char* argv[]) {
-    assert(argc == 3);
+    assert(argc >= 3);
     std::string filename{argv[1]};
     std::string target{argv[2]};
 
     struct pet_options* options = pet_options_new_with_defaults();
     isl_ctx* ctx = isl_ctx_alloc_with_options(&pet_options_args, options);
+    isl_ctx_parse_options(ctx, argc-2, argv+2, ISL_ARG_ALL);
     struct pet_scop* scop =
       pet_scop_extract_from_C_source(ctx, filename.c_str(), NULL);
 
