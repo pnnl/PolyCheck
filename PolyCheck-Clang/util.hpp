@@ -24,7 +24,7 @@ inline std::string replace_all(const std::string& str_in,
 
 inline std::vector<std::string> iter_names(isl_set* iset) {
     std::vector<std::string> ret;
-    for(size_t j = 0; j < isl_set_n_dim(iset); j++) {
+    for(int j = 0; j < isl_set_n_dim(iset); j++) {
         const char* iname = isl_set_get_dim_name(iset, isl_dim_set, j);
         if(iname != nullptr)
             ret.push_back(std::string(iname));
@@ -37,7 +37,7 @@ inline std::vector<std::string> iter_names(isl_set* iset) {
 inline std::vector<std::string> iter_names(isl_space* space) {
     std::vector<std::string> ret;
     // std::cerr << "SPACE ndim=" << isl_space_dim(space, isl_dim_set) << "\n";
-    for(size_t j = 0; j < isl_space_dim(space, isl_dim_set); j++) {
+    for(int j = 0; j < isl_space_dim(space, isl_dim_set); j++) {
         const char* iname = isl_space_get_dim_name(space, isl_dim_set, j);
         if(iname != nullptr)
             ret.push_back(std::string(iname));

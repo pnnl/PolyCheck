@@ -359,7 +359,6 @@ public:
           std::vector<Statement> matched_stmts;
           std::vector<std::vector<std::string> > wlvals;
           std::vector<std::vector<std::string> > rlvals;
-          int c = 0;
           for (auto i = 0U; i < stmts.size(); i++) {
             vector<std::string> petStmtVarIds = stmts[i].stmt_varids();
             bool equal = CheckStmtVarIds(stmtVarIds, petStmtVarIds);

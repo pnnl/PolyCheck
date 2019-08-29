@@ -114,7 +114,7 @@ class Prolog {
         }
         std::string set_code      = islw::to_c_string(set);
         std::vector<std::string> args_vec;
-        for(unsigned i=0; i<isl_set_dim(set, isl_dim_set); i++) {
+        for(int i=0; i<isl_set_dim(set, isl_dim_set); i++) {
             assert(isl_set_has_dim_name(set, isl_dim_set, i) == isl_bool_true);
             assert(isl_set_has_dim_id(set,isl_dim_set, i) == isl_bool_true);
             const char *str =isl_set_get_dim_name(set, isl_dim_set, i);
@@ -199,7 +199,7 @@ class Epilog {
         }
         std::string set_code = islw::to_c_string(iset);
         std::vector<std::string> args_vec;
-        for(unsigned i=0; i<isl_set_dim(iset, isl_dim_set); i++) {
+        for(int i=0; i<isl_set_dim(iset, isl_dim_set); i++) {
             assert(isl_set_has_dim_name(iset, isl_dim_set, i) == isl_bool_true);
             assert(isl_set_has_dim_id(iset,isl_dim_set, i) == isl_bool_true);
             const char *str =isl_set_get_dim_name(iset, isl_dim_set, i);
@@ -255,7 +255,7 @@ class Epilog {
         std::string set_code      = islw::to_c_string(set);
         std::string poly_code     = islw::to_c_string(poly);
         std::vector<std::string> args_vec;
-        for(unsigned i=0; i<isl_set_dim(set, isl_dim_set); i++) {
+        for(int i=0; i<isl_set_dim(set, isl_dim_set); i++) {
             assert(isl_set_has_dim_name(set, isl_dim_set, i) == isl_bool_true);
             assert(isl_set_has_dim_id(set,isl_dim_set, i) == isl_bool_true);
             const char *str =isl_set_get_dim_name(set, isl_dim_set, i);

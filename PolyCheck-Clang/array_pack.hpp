@@ -18,8 +18,8 @@ class ArrayInfo {
       max_exprs_{max_exprs},
       min_exprs_{min_exprs} {
         assert(ndim >= 0);
-        assert(max_exprs_.size() == ndim);
-        assert(min_exprs_.size() == ndim);
+        assert(max_exprs_.size() == static_cast<size_t>(ndim));
+        assert(min_exprs_.size() == static_cast<size_t>(ndim));
     }
 
     std::string name() const { return name_; }
@@ -440,7 +440,7 @@ class ArrayInfo {
     std::string dim_max_string(int dim) const {
         assert(dim >= 0);
         assert(dim < ndim());
-        assert(max_exprs_.size() == ndim());
+        assert(static_cast<int>(max_exprs_.size()) == ndim());
         std::string ret;
         assert(max_exprs_[dim].size() > 0);
         if(max_exprs_[dim].size() == 1) {
@@ -457,7 +457,7 @@ class ArrayInfo {
     std::string dim_min_string(int dim) const {
         assert(dim >= 0);
         assert(dim < ndim());
-        assert(min_exprs_.size() == ndim());
+        assert(static_cast<int>(min_exprs_.size()) == ndim());
         std::string ret;
         assert(min_exprs_[dim].size() > 0);
         if(min_exprs_[dim].size() == 1) {

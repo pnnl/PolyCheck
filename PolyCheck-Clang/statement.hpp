@@ -460,7 +460,7 @@ class Statement {
 
     std::string read_template_name(int dim) const {
       assert(dim >= 0);
-      assert(dim < read_refs_.size());
+      assert(static_cast<size_t>(dim) < read_refs_.size());
       return "[[_" + name() + "_r" + std::to_string(dim) + "]]";
     }
 
@@ -471,8 +471,8 @@ class Statement {
       assert(matched_stmts.size() == wlvals.size());
       assert(wlvals.size() == rlvals.size());
       for (size_t i = 0; i < matched_stmts.size(); i++) {
-        assert(matched_stmts[i].num_writes() == wlvals[i].size());
-        assert(matched_stmts[i].num_reads() == rlvals[i].size());
+        assert(static_cast<size_t>(matched_stmts[i].num_writes()) == wlvals[i].size());
+        assert(static_cast<size_t>(matched_stmts[i].num_reads()) == rlvals[i].size());
       }
       auto dname = [](int i) { return "_d" + std::to_string(i); };
       std::string ret;
@@ -547,12 +547,12 @@ class Statement {
         //str += sinstance_args_decl_string() + "\n";
         //determine statement instance
         std::vector<std::string> sinstance_argsv;
-        for(int j = 0; j < read_refs_.size(); j++) {
+        for(size_t j = 0; j < read_refs_.size(); j++) {
             for(int k = 0; k < array_sizes_[j]; k++) {
                 sinstance_argsv.push_back(read_ref_dim_string(j, k));
             }
         }
-        for(int j = 0; j < read_refs_.size(); j++) {
+        for(size_t j = 0; j < read_refs_.size(); j++) {
             sinstance_argsv.push_back(read_ref_ver_string(j));
         }
         std::string sinstance_args = "(" + join(sinstance_argsv, ", ") + ")";
@@ -772,7 +772,7 @@ class Statement {
      */
     std::string read_ref_src_string(int read_ref_id) const {
         assert(read_ref_id >= 0);
-        assert(read_ref_id < read_refs_.size());
+        assert(read_ref_id < static_cast<int>(read_refs_.size()));
         std::string name{
           isl_map_get_tuple_name(read_refs_[read_ref_id], isl_dim_out)};
         std::vector<std::string> arg_names;
@@ -818,8 +818,8 @@ class Statement {
 
     std::string read_ref_string(int read_ref_id) const {
       assert(read_ref_id >=0);
-      assert(read_ref_id < read_array_names_.size());
-      assert(read_ref_id < array_sizes_.size());
+      assert(read_ref_id < static_cast<int>(read_array_names_.size()));
+      assert(read_ref_id < static_cast<int>(array_sizes_.size()));
       std::vector<std::string> dim_strings;
       for(int i=0; i<array_sizes_[read_ref_id]; i++) {
         dim_strings.push_back(read_ref_dim_string(read_ref_id, i));
@@ -916,8 +916,8 @@ class Statement {
 
     std::string read_dim_id_macro_name(int read_ref_id, int dim_id) const {
       assert(read_ref_id >=0);
-      assert(read_ref_id < read_refs_.size());
-      assert(read_ref_id < array_sizes_.size());
+      assert(read_ref_id < static_cast<int>(read_refs_.size()));
+      assert(read_ref_id < static_cast<int>(array_sizes_.size()));
       assert(dim_id >= 0 && dim_id < array_sizes_[read_ref_id]);
       return "PC_I_S" + std::to_string(stmt_id_) + "_r" +
              std::to_string(read_ref_id) + "_i" + std::to_string(dim_id);
@@ -930,9 +930,9 @@ class Statement {
     std::string read_dim_id_macro_def_string(int read_ref_id,
                                              int dim_id) const {
         assert(read_ref_id >= 0);
-        assert(read_ref_id < read_dim_macro_args_.size());
+        assert(read_ref_id < static_cast<int>(read_dim_macro_args_.size()));
         assert(domain_ != nullptr);
-        assert(dim_id < read_dim_macro_args_[read_ref_id].size());
+        assert(dim_id < static_cast<int>(read_dim_macro_args_[read_ref_id].size()));
 
         isl_map* newm = isl_map_set_tuple_name(
           islw::copy(read_dim_maps_[read_ref_id][dim_id]), isl_dim_out, "");
@@ -967,7 +967,7 @@ class Statement {
 
     std::string write_dim_id_macro_def_string(int dim_id) const {
         assert(domain_ != nullptr);
-        assert(dim_id < write_dim_macro_args_.size());
+        assert(dim_id < static_cast<int>(write_dim_macro_args_.size()));
 
         isl_map* newm = isl_map_set_tuple_name(
           islw::copy(write_dim_maps_[dim_id]), isl_dim_out, "");
@@ -1004,9 +1004,9 @@ class Statement {
 
     std::string read_ref_macro_def_string(int read_ref_id) const {
       assert(read_ref_id >=0);
-      assert(read_ref_id < read_refs_.size());
-      assert(read_ref_id < read_ref_macro_args_.size());
-      assert(read_ref_id < read_ref_macro_exprs_.size());
+      assert(read_ref_id < static_cast<int>(read_refs_.size()));
+      assert(read_ref_id < static_cast<int>(read_ref_macro_args_.size()));
+      assert(read_ref_id < static_cast<int>(read_ref_macro_exprs_.size()));
       std::string ret;
 #if 0
       ret =
