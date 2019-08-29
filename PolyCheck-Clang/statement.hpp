@@ -607,7 +607,7 @@ class Statement {
             }
             wargs.push_back("(1+("+write_ref_ver_string()+"))");
 
-            str += write_template_name() +
+            str += write_template_name() + " = " +
                     array_pack.encode_string(write_array_name_, wargs) +
                     ";\n}\n";
         }
