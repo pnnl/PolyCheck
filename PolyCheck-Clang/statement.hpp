@@ -72,78 +72,81 @@ static isl_stat print_pw_qpoly(__isl_take isl_pw_qpolynomial *pwqp, void *user) 
 }
 
 class Statement {
-    public:
-    Statement() :
-      stmt_id_{-1},
-      domain_{nullptr},
-      write_ref_{nullptr},
-      write_ref_card_{nullptr} {}
+ public:
+  Statement()
+      : stmt_id_{-1},
+        domain_{nullptr},
+        write_ref_{nullptr},
+        write_ref_card_{nullptr} {}
 
-    Statement(const Statement& stmt) : stmt_id_{stmt.stmt_id_} {
-        domain_    = islw::copy(stmt.domain_);
+  Statement(const Statement& stmt) : stmt_id_{stmt.stmt_id_} {
+    domain_ = islw::copy(stmt.domain_);
 
-        R_ = islw::copy(stmt.R_);
-        W_ = islw::copy(stmt.W_);
-        isched_ = islw::copy(stmt.isched_);
-        S_ = islw::copy(stmt.S_);
-        read_array_names_ = stmt.read_array_names_;
-        array_sizes_ = stmt.array_sizes_;
-        for(const auto& rr : stmt.read_refs_) {
-            read_refs_.push_back(islw::copy(rr));
-        }
-        for(const auto& rrc : stmt.read_ref_cards_) {
-            read_ref_cards_.push_back(islw::copy(rrc));
-        }
-        // read_ref_macro_names_ = stmt.read_ref_macro_names_;
-        read_ref_macro_args_ = stmt.read_ref_macro_args_;
-        read_ref_macro_exprs_ = stmt.read_ref_macro_exprs_;
-        for(auto &rdms: stmt.read_dim_maps_) {
-          read_dim_maps_.push_back({});
-          for(auto& rdm: rdms) {
-            read_dim_maps_.back().push_back(islw::copy(rdm));
-          }
-        }
-        read_dim_macro_args_ = stmt.read_dim_macro_args_;
-
-        write_array_name_ = stmt.write_array_name_;
-        write_array_size_ = stmt.write_array_size_;
-        write_ref_ = islw::copy(stmt.write_ref_);
-        write_ref_card_ = islw::copy(stmt.write_ref_card_);
-        write_ref_macro_args_ = stmt.write_ref_macro_args_;
-        write_ref_macro_exprs_ = stmt.write_ref_macro_exprs_;
-        for(auto& wdm : stmt.write_dim_maps_) {
-            write_dim_maps_.push_back(islw::copy(wdm));
-        }
-        write_dim_macro_args_ = stmt.write_dim_macro_args_;
-
-        stmt_varids_ = stmt.stmt_varids_;
-        sinstance_macro_exprs_ = stmt.sinstance_macro_exprs_;
-        sinstance_macro_params_ = stmt.sinstance_macro_params_;
-        sinstance_macro_args_ = stmt.sinstance_macro_args_;
+    R_ = islw::copy(stmt.R_);
+    W_ = islw::copy(stmt.W_);
+    isched_ = islw::copy(stmt.isched_);
+    S_ = islw::copy(stmt.S_);
+    read_array_names_ = stmt.read_array_names_;
+    array_sizes_ = stmt.array_sizes_;
+    for (const auto& rr : stmt.read_refs_) {
+      read_refs_.push_back(islw::copy(rr));
     }
-
-    Statement& operator = (Statement&& stmt){
-        std::swap(*this, stmt);
-        return *this;
+    for (const auto& rrc : stmt.read_ref_cards_) {
+      read_ref_cards_.push_back(islw::copy(rrc));
     }
+    // read_ref_macro_names_ = stmt.read_ref_macro_names_;
+    read_ref_macro_args_ = stmt.read_ref_macro_args_;
+    read_ref_macro_exprs_ = stmt.read_ref_macro_exprs_;
+    for (auto& rdms : stmt.read_dim_maps_) {
+      read_dim_maps_.push_back({});
+      for (auto& rdm : rdms) {
+        read_dim_maps_.back().push_back(islw::copy(rdm));
+      }
+    }
+    read_dim_macro_args_ = stmt.read_dim_macro_args_;
 
-    Statement(int stmt_id, pet_scop* pscop) : stmt_id_{stmt_id} {
-        R_      = pet_scop_get_may_reads(pscop);
-        W_      = pet_scop_get_may_writes(pscop);
-        isched_ = pet_scop_get_schedule(pscop);
-        S_      = isl_schedule_get_map(isched_);
+    write_array_name_ = stmt.write_array_name_;
+    write_array_size_ = stmt.write_array_size_;
+    write_ref_ = islw::copy(stmt.write_ref_);
+    write_ref_card_ = islw::copy(stmt.write_ref_card_);
+    write_ref_macro_args_ = stmt.write_ref_macro_args_;
+    write_ref_macro_exprs_ = stmt.write_ref_macro_exprs_;
+    for (auto& wdm : stmt.write_dim_maps_) {
+      write_dim_maps_.push_back(islw::copy(wdm));
+    }
+    write_dim_macro_args_ = stmt.write_dim_macro_args_;
 
-        domain_ = islw::copy(pscop->stmts[stmt_id_]->domain);
+    stmt_varids_ = stmt.stmt_varids_;
+    sinstance_macro_exprs_ = stmt.sinstance_macro_exprs_;
+    sinstance_macro_params_ = stmt.sinstance_macro_params_;
+    sinstance_macro_args_ = stmt.sinstance_macro_args_;
+  }
 
-        // std::cout << "DOMAIN=\n"<<islw::to_string(domain_) << "\n";
+  Statement& operator=(Statement&& stmt) {
+    std::swap(*this, stmt);
+    return *this;
+  }
 
-        // std::cerr<<__FUNCTION__<<"\n R-----\n"<<islw::to_string(R)<<"\n-----\n";
-        // std::cerr<<__FUNCTION__<<"\n W-----\n"<<islw::to_string(W)<<"\n-----\n";
-        // std::cerr<<__FUNCTION__<<"\n S-----\n"<<islw::to_string(S)<<"\n-----\n";
-        // std::cerr<<__FUNCTION__<<"\n isched-----\n"<<islw::to_string(isched)<<"\n-----\n";
-        gather_references(pet_tree_expr_get_expr(pscop->stmts[stmt_id]->body));
+  Statement(int stmt_id, pet_scop* pscop) : stmt_id_{stmt_id} {
+    R_ = pet_scop_get_may_reads(pscop);
+    W_ = pet_scop_get_may_writes(pscop);
+    isched_ = pet_scop_get_schedule(pscop);
+    S_ = isl_schedule_get_map(isched_);
 
-        GatherStmtVarIds(stmt_varids_, pet_tree_expr_get_expr(pscop->stmts[stmt_id]->body), domain_);
+    domain_ = islw::copy(pscop->stmts[stmt_id_]->domain);
+
+    // std::cout << "DOMAIN=\n"<<islw::to_string(domain_) << "\n";
+
+    // std::cerr<<__FUNCTION__<<"\n R-----\n"<<islw::to_string(R)<<"\n-----\n";
+    // std::cerr<<__FUNCTION__<<"\n W-----\n"<<islw::to_string(W)<<"\n-----\n";
+    // std::cerr<<__FUNCTION__<<"\n S-----\n"<<islw::to_string(S)<<"\n-----\n";
+    // std::cerr<<__FUNCTION__<<"\n
+    // isched-----\n"<<islw::to_string(isched)<<"\n-----\n";
+    gather_references(pet_tree_expr_get_expr(pscop->stmts[stmt_id]->body));
+
+    GatherStmtVarIds(stmt_varids_,
+                     pet_tree_expr_get_expr(pscop->stmts[stmt_id]->body),
+                     domain_);
 
 #if 0
         isl_union_set* T = isl_union_map_range(islw::copy(S));
@@ -203,6 +206,18 @@ class Statement {
 
     std::string name() const {
         return std::string{"_s"} + std::to_string(stmt_id_);
+    }
+
+    int num_reads() const {
+      return read_refs_.size();
+    }
+
+    int num_writes() const {
+      return (write_ref_!=nullptr) ? 1 : 0;
+    }
+
+    bool has_write() const {
+      return write_ref_ != nullptr;
     }
 
     static std::string inline_checks(
@@ -439,10 +454,55 @@ class Statement {
         return ret;
     }
 
-    std::string inline_check_template() const {
-      ArrayPack array_pack{R_, W_};
+    std::string diff_template_name() const { return "[[_diff]]"; }
+
+    std::string write_template_name() const { return "[[_" + name() + "_w]]"; }
+
+    std::string read_template_name(int dim) const {
+      assert(dim >= 0);
+      assert(dim < read_refs_.size());
+      return "[[_" + name() + "_r" + std::to_string(dim) + "]]";
+    }
+
+    static std::string inline_check_string(
+        const std::vector<Statement>& matched_stmts,
+        const std::vector<std::vector<std::string>>& wlvals,
+        const std::vector<std::vector<std::string>>& rlvals) {
+      assert(matched_stmts.size() == wlvals.size());
+      assert(wlvals.size() == rlvals.size());
+      for (size_t i = 0; i < matched_stmts.size(); i++) {
+        assert(matched_stmts[i].num_writes() == wlvals[i].size());
+        assert(matched_stmts[i].num_reads() == rlvals[i].size());
+      }
+      auto dname = [](int i) { return "_d" + std::to_string(i); };
+      std::string ret;
+      ret = "*/\n//---begin checks---\n{\n";
+      for (size_t i = 0; i < matched_stmts.size(); i++) {
+        ret += "uint64_t " + dname(i) + " = 0;\n";
+      }
+      for (size_t i = 0; i < matched_stmts.size(); i++) {
+        const Statement& stmt = matched_stmts[i];
+        std::string tmpl = stmt.inline_check_template();
+        tmpl = replace_all(tmpl, stmt.diff_template_name(), dname(i));
+        if (stmt.has_write()) {
+          tmpl = replace_all(tmpl, stmt.write_template_name(), wlvals[i][0]);
+        }
+        for (size_t j = 0; j < rlvals[i].size(); j++) {
+          tmpl = replace_all(tmpl, stmt.read_template_name(j), rlvals[i][j]);
+        }
+        ret += "{\n" + tmpl + "\n}\n";
+      }
+      for (size_t i = 0; i < matched_stmts.size(); i++) {
+        ret += "_diff |= " + dname(i) + ";\n";
+      }
+      ret += "}\n//---end checks---\n";
+      return ret;
+    }
+
+      std::string inline_check_template() const {
+        ArrayPack array_pack{R_, W_};
         std::string str;
-        const std::string diff_var = "[[_diff]]";
+        const std::string diff_var = diff_template_name();
         const std::string sname = name();
         assert(read_refs_.size() == array_sizes_.size());
 
@@ -450,7 +510,7 @@ class Statement {
         str += array_pack.entry_function_preamble();
 
         for(size_t i = 0; i < read_refs_.size(); i++) {
-            std::string args = "[[_" + sname + "_r" + std::to_string(i) + "]]";
+            std::string args = read_template_name(i);//"[[_" + sname + "_r" + std::to_string(i) + "]]";
             for(auto j = 0; j < array_sizes_[i]; j++) {
                 std::stringstream ss;
                 ss << "uint64_t " << read_ref_dim_string(i, j) << " = "
@@ -547,7 +607,7 @@ class Statement {
             }
             wargs.push_back("(1+("+write_ref_ver_string()+"))");
 
-            str += "[[__" + sname + "_w]] = " +
+            str += write_template_name() +
                     array_pack.encode_string(write_array_name_, wargs) +
                     ";\n}\n";
         }
@@ -1276,4 +1336,4 @@ class Statement {
     std::vector<isl_map*> write_dim_maps_;
     std::vector<std::string> write_dim_macro_args_;
     // isl_union_map* sched_;
-}; // class Statement 
+  };  // class Statement

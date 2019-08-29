@@ -2,6 +2,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 #include <fstream>
 
 #include "islw.hpp"
@@ -14,6 +15,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -33,6 +35,16 @@
 
 using namespace clang;
 using namespace std;
+
+const std::string toString(clang::Stmt *stmt) {
+  clang::LangOptions LangOpts;
+  LangOpts.C99 = true;
+  clang::PrintingPolicy Policy(LangOpts);
+  std::string TypeS;
+  llvm::raw_string_ostream s(TypeS);
+  stmt->printPretty(s, 0, Policy);
+  return s.str();
+}
 
 CompilerInstance* pTheCompInst_g;
 
@@ -320,14 +332,15 @@ public:
 	                     src_mgr, clangopts) + 1;
 	        SourceLocation END1 = END.getLocWithOffset(offset);
 
+#if 0
           TheRewriter.InsertText(END1, " */ \n//---begin checks---\n", true, true);
-          
+
           // iterate all stmts to find the right one
           std::vector<Statement*> pstmts;
           std::vector<std::vector<std::string>> stmtVecItersList;
           for (auto i=0U; i < stmts.size(); i++)
           {
-            vector<std::string> petStmtVarIds = stmts[i].stmt_varids();   
+            vector<std::string> petStmtVarIds = stmts[i].stmt_varids();
             bool equal = CheckStmtVarIds(stmtVarIds, petStmtVarIds);
             if (equal){
               //TheRewriter.InsertText(END1, stmts[i].inline_checks(stmtVecIters), true, true);
@@ -341,37 +354,59 @@ public:
             true);
 
           TheRewriter.InsertText(END1, "//---end checks---\n", true, true);
-          
 
-        }//if ( lhsArray || rhsArray)
+#else
+          std::vector<Statement> matched_stmts;
+          std::vector<std::vector<std::string> > wlvals;
+          std::vector<std::vector<std::string> > rlvals;
+          int c = 0;
+          for (auto i = 0U; i < stmts.size(); i++) {
+            vector<std::string> petStmtVarIds = stmts[i].stmt_varids();
+            bool equal = CheckStmtVarIds(stmtVarIds, petStmtVarIds);
+            if (equal) {
+              matched_stmts.push_back(stmts[i]);
+              //@fixme @todo Fix the following lines to get the lvalue
+              // expressions for writes and reads
+              std::vector<std::string> wlval_per_stmt{"[[@fix w]]"/*toString(lhs)*/};
+              std::vector<std::string> rlval_per_stmt;
+              for (int j = 0; j < stmts[i].num_reads(); j++) {
+                rlval_per_stmt.push_back("[[@fix r" + std::to_string(j) + "]]");
+              }
+              wlvals.push_back(wlval_per_stmt);
+              rlvals.push_back(rlval_per_stmt);
+            }
+          }
+          std::string insert;
+          insert =
+              Statement::inline_check_string(matched_stmts, wlvals, rlvals);
+          TheRewriter.InsertText(END1, insert, true, true);
+#endif
+        }// if ( lhsArray || rhsArray)
       }//if (!m_inForLine)
     }// if (b->isAssignmentOp())
     #endif
-
     return true;
   }//bool VisitBinaryOperator(BinaryOperator *b)
 
   bool VisitStmt(Stmt *s)
   {
       SourceManager &SM = PP.getSourceManager();
-
       if (SM.getFileOffset(s->getBeginLoc()) <= loc.start)
         return true;
 
       // else if(SM/getFileOffset(s->getBeginLoc())>loc.start)
       if (SM.getFileOffset(s->getEndLoc()) >= loc.end)
       {
-	      if (FaultTolerantRegionStarted == true)
-	      {
-	        FaultTolerantRegionStarted = false;
-	      }// if (FaultTolerantRegionStarted == true)
+             if (FaultTolerantRegionStarted == true)
+             {
+               FaultTolerantRegionStarted = false;
+             }// if (FaultTolerantRegionStarted == true)
         return true;
       }
-
       // else if(SM.getFileOffset(s->getBeginLoc())>loc.start&&SM.getFileOffset(s->getEndLoc()) < loc.end)
       if (FaultTolerantRegionStarted == false)
       {
-      	FaultTolerantRegionStarted = true;
+       FaultTolerantRegionStarted = true;
 
         // ADD Prologue
 
@@ -586,6 +621,11 @@ int ParseScop(string fileName, std::vector<Statement> &stmts, string prologue, s
   pTheCompInst_g = &TheCompInst;
   TheCompInst.createDiagnostics ();
 
+#if defined(SYSROOT)
+  HeaderSearchOptions& hdr_opt = TheCompInst.getHeaderSearchOpts();
+  //hdr_opt.Sysroot = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk";
+  hdr_opt.Sysroot = SYSROOT;
+#endif
   // Initialize target info with the default triple for our platform.
 //  TargetOptions TO;
 //  TO.Triple = llvm::sys::getDefaultTargetTriple();

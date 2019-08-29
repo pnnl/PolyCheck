@@ -323,17 +323,27 @@ unsigned num_bits(uint64_t v) {
     return r + ((v1^(1<<r))>0);
 })";
 
-
-
+std::vector<char*> split_to_args(const std::string& str) {
+    std::stringstream iss{str};
+    std::vector<char*> result;
+    for(std::string s; iss >> s;) {
+        std::cout << "pet args: " << s << "\n";
+        result.push_back(strdup(s.c_str()));
+    }
+    return result;
+}
 
 int main(int argc, char* argv[]) {
-    assert(argc >= 3);
+    //assert(argc == 5);
     std::string filename{argv[1]};
-    std::string target{argv[2]};
+    std::string target{argv[3]};
 
     struct pet_options* options = pet_options_new_with_defaults();
     isl_ctx* ctx = isl_ctx_alloc_with_options(&pet_options_args, options);
-    isl_ctx_parse_options(ctx, argc-2, argv+2, ISL_ARG_ALL);
+    std::vector<char*> pet_args = split_to_args(argv[2]);
+    //isl_ctx_parse_options(ctx, argc-2, argv+2, ISL_ARG_ALL);
+    pet_args.insert(pet_args.begin(), strdup("blah"));
+    isl_ctx_parse_options(ctx, pet_args.size(), pet_args.data(), ISL_ARG_ALL);
     struct pet_scop* scop =
       pet_scop_extract_from_C_source(ctx, filename.c_str(), NULL);
 
@@ -412,11 +422,11 @@ int main(int argc, char* argv[]) {
     ParseScop(target, stmts, prologue, epilogue, output_file_name(target));
     stmts.clear();
 
-    std::ofstream of{std::string{"defs_"}+argv[2], ios::out};
+    std::ofstream of{std::string{"defs_"}+argv[3], ios::out};
     of<<num_bits_func<<"\n";
     of<<array_pack.global_decls()<<"\n";
     of.close();
-    std::cout<<"Defs written to "<<std::string{"defs_"}+argv[2]<<"\n";
+    std::cout<<"Defs written to "<<std::string{"defs_"}+argv[3]<<"\n";
 #endif
     isl_schedule_free(isched);
     islw::destruct(R, W, S);
