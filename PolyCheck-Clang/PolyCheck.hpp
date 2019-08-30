@@ -242,6 +242,60 @@ public:
 	  }// else
   }//void TraverseExprToGetStmtIters 
 
+
+  void TraverseExpr_getLValues (Expr *expr, vector<Expr*> &rlvals)
+  {
+    if (expr->getStmtClass() == Stmt::BinaryOperatorClass)
+    {
+	    BinaryOperator* b = cast<BinaryOperator>(expr);
+	    TraverseExpr_getLValues (b->getLHS(), rlvals);
+	    TraverseExpr_getLValues (b->getRHS(), rlvals);
+    }
+    else if (expr->getStmtClass() == Stmt::UnaryOperatorClass)
+    {
+	    UnaryOperator* u = cast<UnaryOperator>(expr);
+	    TraverseExpr_getLValues (u->getSubExpr(), rlvals);
+    }
+    else if (expr->getStmtClass() == Stmt::CallExprClass)
+    {
+	    CallExpr* c = cast<CallExpr>(expr);
+      for(auto x = 0U; x < c->getNumArgs(); x++)
+        TraverseExpr_getLValues (c->getArg(x), rlvals);
+    }
+    else if (expr->getStmtClass() == Stmt::ConditionalOperatorClass)
+    {
+	    ConditionalOperator* c = cast<ConditionalOperator>(expr);
+      TraverseExpr_getLValues (c->getCond(), rlvals);
+      TraverseExpr_getLValues (c->getTrueExpr(),  rlvals);
+      TraverseExpr_getLValues (c->getFalseExpr(), rlvals);
+    }
+    else if (expr->getStmtClass() == Stmt::IntegerLiteralClass ||
+             expr->getStmtClass() == Stmt::FloatingLiteralClass)
+    {
+	    rlvals.push_back(expr);
+    }
+    else if (expr->getStmtClass() == Stmt::ParenExprClass)
+    {
+	    ParenExpr *p = cast<ParenExpr>(expr);
+	    TraverseExpr_getLValues(p->getSubExpr(), rlvals);
+    }
+    else if (expr->getStmtClass() == Stmt::ImplicitCastExprClass)
+    {
+	    ImplicitCastExpr *i = cast<ImplicitCastExpr>(expr);
+	    TraverseExpr_getLValues(i->getSubExpr(), rlvals);
+    }
+    else if (expr->getStmtClass() == Stmt::ArraySubscriptExprClass)
+    {
+      rlvals.push_back(expr);
+
+    }// isa<ArraySubscriptExpr>(expr) 
+    else// DeclRefExpr: vector name, variable name
+    {
+      // store vector and variable names
+      rlvals.push_back(expr);
+	  }
+  }//void TraverseExpr_getLValues
+
   bool CheckStmtVarIds(vector<std::string> stmtVarIds, vector<std::string> petStmtVarIds)
   {
     if (stmtVarIds.size() != petStmtVarIds.size())
@@ -356,6 +410,9 @@ public:
           TheRewriter.InsertText(END1, "//---end checks---\n", true, true);
 
 #else
+          std::vector<Expr*> expr_rlvals;
+          TraverseExpr_getLValues (lhs, expr_rlvals);
+          TraverseExpr_getLValues (rhs, expr_rlvals);
           std::vector<Statement> matched_stmts;
           std::vector<std::vector<std::string> > wlvals;
           std::vector<std::vector<std::string> > rlvals;
@@ -366,10 +423,11 @@ public:
               matched_stmts.push_back(stmts[i]);
               //@fixme @todo Fix the following lines to get the lvalue
               // expressions for writes and reads
-              std::vector<std::string> wlval_per_stmt{"[[@fix w]]"/*toString(lhs)*/};
+              std::vector<std::string> wlval_per_stmt{/*"[[@fix w]]"*/ toString(lhs)};
               std::vector<std::string> rlval_per_stmt;
               for (int j = 0; j < stmts[i].num_reads(); j++) {
-                rlval_per_stmt.push_back("[[@fix r" + std::to_string(j) + "]]");
+                // rlval_per_stmt.push_back("[[@fix r" + std::to_string(j) + "]]");
+                rlval_per_stmt.push_back(/*"[[@fix r" + std::to_string(j) + "]]"*/ toString(expr_rlvals[j]));
               }
               wlvals.push_back(wlval_per_stmt);
               rlvals.push_back(rlval_per_stmt);
