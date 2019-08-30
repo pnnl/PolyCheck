@@ -535,12 +535,14 @@ class Statement {
         str += check_macro_def_string();
         str += array_pack.nonentry_function_preamble();
 
+        // evaluate read and write lvalue expressions
         for (size_t i = 0; i < read_refs_.size(); i++) {
           str += "uint64_t "+read_expr_eval(i)+" = *(uint64_t*)&("+read_template_name(i)+");\n";
         }
         str += "uint64_t *" + write_expr_eval() + " = (uint64_t*)&(" +
                write_template_name() + ");\n";
 
+        // decode read dims
         for (size_t i = 0; i < read_refs_.size(); i++) {
           std::string args = read_expr_eval(i);
           for (auto j = 0; j < array_sizes_[i]; j++) {
@@ -551,6 +553,7 @@ class Statement {
             str += ss.str();
           }
           std::stringstream ss;
+          // decode read version numbers
           ss << "uint64_t " << read_ref_ver_string(i) << " = ("
              << array_pack.ver_decode_macro_use(read_array_names_[i], args)
              << ")- 1;\n";
@@ -558,24 +561,28 @@ class Statement {
         }
 
         str += "\n";
+        // macro definitions for read cardinality from ISL
         for(size_t i = 0; i < read_refs_.size(); i++) {
             str += read_ref_macro_def_string(i);
         }
+        // macro definitions for read dims from ISL
         for(size_t i = 0; i < read_refs_.size(); i++) {
             for(auto j = 0; j < array_sizes_[i]; j++) {
                 str += read_dim_id_macro_def_string(i, j);
             }
         }
+        // macro definitions for write cardinality from ISL
         str += write_ref_macro_def_string();
+        // macro definitions for read dims from ISL
         for(auto j = 0; j < write_array_size_; j++) {
             str += write_dim_id_macro_def_string(j);
         }
         str += "\n";
+        // macro definitions for statement instance determination
         for(auto i = 0; i < dim(); i++) {
             str += sinstance_macro_decl_string(i);
         }
         str += "\n";
-        //str += sinstance_args_decl_string() + "\n";
         //determine statement instance
         std::vector<std::string> sinstance_argsv;
         for(size_t j = 0; j < read_refs_.size(); j++) {
@@ -609,10 +616,6 @@ class Statement {
                                    read_dim_id_macro_name(i, j) + "(" +
                                        sinstance_args_string() + ")",
                                    read_ref_dim_string(i, j));
-            //              str +=
-            // diff_var + " |= " + read_dim_id_macro_name(i, j) + "(" +
-            // sinstance_args_string() + ")" + " ^ " +
-            // read_ref_dim_string(i, j) + ";\n";
           }
         }
         str += "\n";
@@ -622,15 +625,11 @@ class Statement {
               diff_var,
               read_ref_macro_name(i) + "(" + sinstance_args_string() + ")",
               read_ref_ver_string(i));
-          //  str +=
-          // diff_var + " |= " + read_ref_macro_name(i) + "(" +
-          // sinstance_args_string() + ")" + " ^ " + read_ref_ver_string(i) +
-          // ";\n";
         }
         str += "\n";
 
         if(write_ref_ != nullptr) {
-            // SK: store version number rather than counter
+            // store version number if there is a write reference
             str += "if(" + diff_var + "==0) {\n";
 
             std::string args = "*"+write_expr_eval();
@@ -660,6 +659,7 @@ class Statement {
                     ";\n}\n";
         }
         str += "\n";
+        // cleanup: macro undefs
         for(auto i = 0; i < dim(); i++) {
             str += sinstance_macro_undef_string(i);
         }
