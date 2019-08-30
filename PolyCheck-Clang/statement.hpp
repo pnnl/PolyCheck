@@ -460,9 +460,9 @@ class Statement {
 
     std::string write_template_name() const { return "[[_" + name() + "_w]]"; }
 
-    std::string write_template_expr() const {
-      return "*(uint64_t*)&([[_" + name() + "_w]])";
-    }
+    // std::string write_template_expr() const {
+    //   return "*(uint64_t*)&([[_" + name() + "_w]])";
+    // }
 
     std::string read_template_name(int dim) const {
       assert(dim >= 0);
@@ -470,11 +470,11 @@ class Statement {
       return "[[_" + name() + "_r" + std::to_string(dim) + "]]";
     }
 
-    std::string read_template_expr(int dim) const {
-      assert(dim >= 0);
-      assert(static_cast<size_t>(dim) < read_refs_.size());
-      return "*(uint64_t*)&([[_" + name() + "_r" + std::to_string(dim) + "]])";
-    }
+    // std::string read_template_expr(int dim) const {
+    //   assert(dim >= 0);
+    //   assert(static_cast<size_t>(dim) < read_refs_.size());
+    //   return "*(uint64_t*)&([[_" + name() + "_r" + std::to_string(dim) + "]])";
+    // }
 
     static std::string inline_check_string(
         const std::vector<Statement>& matched_stmts,
@@ -511,7 +511,17 @@ class Statement {
       return ret;
     }
 
-      std::string inline_check_template() const {
+    std::string read_expr_eval(int dim) const {
+      assert(dim >= 0);
+      assert(static_cast<size_t>(dim) < read_refs_.size());
+      return name() + "_r" + std::to_string(dim);
+    }
+
+    std::string write_expr_eval() const {
+      return name() + "_w";
+    }
+
+    std::string inline_check_template() const {
         ArrayPack array_pack{R_, W_};
         std::string str;
         const std::string diff_var = diff_template_expr();
@@ -522,21 +532,26 @@ class Statement {
         str += check_macro_def_string();
         str += array_pack.nonentry_function_preamble();
 
-        for(size_t i = 0; i < read_refs_.size(); i++) {
-            std::string args = read_template_expr(i);
-            for(auto j = 0; j < array_sizes_[i]; j++) {
-                std::stringstream ss;
-                ss << "uint64_t " << read_ref_dim_string(i, j) << " = "
-                   << array_pack.dim_decode_macro_use(read_array_names_[i], j,
-                                                      args)
-                   << ";\n";
-                str += ss.str();
-            }
+        for (size_t i = 0; i < read_refs_.size(); i++) {
+          str += "uint64_t "+read_expr_eval(i)+" = *(uint64_t*)&("+read_template_name(i)+");\n";
+        }
+        str += "uint64_t *" + write_expr_eval() + " = (uint64_t*)&(" +
+               write_template_name() + ");\n";
+
+        for (size_t i = 0; i < read_refs_.size(); i++) {
+          std::string args = read_expr_eval(i);
+          for (auto j = 0; j < array_sizes_[i]; j++) {
             std::stringstream ss;
-            ss << "uint64_t " << read_ref_ver_string(i) << " = ("
-               << array_pack.ver_decode_macro_use(read_array_names_[i], args)
-               << ")- 1;\n";
+            ss << "uint64_t " << read_ref_dim_string(i, j) << " = "
+               << array_pack.dim_decode_macro_use(read_array_names_[i], j, args)
+               << ";\n";
             str += ss.str();
+          }
+          std::stringstream ss;
+          ss << "uint64_t " << read_ref_ver_string(i) << " = ("
+             << array_pack.ver_decode_macro_use(read_array_names_[i], args)
+             << ")- 1;\n";
+          str += ss.str();
         }
 
         str += "\n";
@@ -580,7 +595,7 @@ class Statement {
           str +=
               check_macro_use(diff_var,
                               array_pack.id_decode_macro_use(
-                                  read_array_names_[i], read_template_expr(i)),
+                                  read_array_names_[i], read_expr_eval(i)),
                               array_pack.id_string(read_array_names_[i]));
         }
 
@@ -615,7 +630,7 @@ class Statement {
             // SK: store version number rather than counter
             str += "if(" + diff_var + "==0) {\n";
 
-            std::string args = write_template_expr(); //"[[_" + sname + "_w]]";
+            std::string args = "*"+write_expr_eval();
             for(auto j = 0; j < write_array_size_; j++) {
                 std::stringstream ss;
                 ss << "uint64_t " << write_ref_dim_string(j) << " = "
@@ -637,7 +652,7 @@ class Statement {
             }
             wargs.push_back("(1+("+write_ref_ver_string()+"))");
 
-            str += write_template_expr() + " = " +
+            str += "*"+write_expr_eval() + " = " +
                     array_pack.encode_string(write_array_name_, wargs) +
                     ";\n}\n";
         }
@@ -662,7 +677,7 @@ class Statement {
         str += check_macro_undef_string();
         str += "\n}/*" + diff_var + "*/\n";
         return str;
-    }
+        }
 
     std::string inline_checks(std::vector<std::string> stmtVecIters, 
       const std::string& diff_var="_diff") const {
