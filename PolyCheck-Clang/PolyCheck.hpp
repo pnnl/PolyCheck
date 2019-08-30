@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <string>
+#include <cstdlib>
 #include <sstream>
 #include <iostream>
 #include <algorithm>
@@ -683,6 +684,9 @@ int ParseScop(string fileName, std::vector<Statement> &stmts, string prologue, s
   //hdr_opt.Sysroot = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk";
   hdr_opt.Sysroot = SYSROOT;
 #endif
+  if (const char *env_p = std::getenv("POLYCHECK_SYSROOT")) {
+    hdr_opt.Sysroot = env_p;
+  }
   // Initialize target info with the default triple for our platform.
 //  TargetOptions TO;
 //  TO.Triple = llvm::sys::getDefaultTargetTriple();

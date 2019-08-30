@@ -456,12 +456,24 @@ class Statement {
 
     std::string diff_template_name() const { return "[[_diff]]"; }
 
+    std::string diff_template_expr() const { return "[[_diff]]"; }
+
     std::string write_template_name() const { return "[[_" + name() + "_w]]"; }
+
+    std::string write_template_expr() const {
+      return "*(uint64_t*)&([[_" + name() + "_w]])";
+    }
 
     std::string read_template_name(int dim) const {
       assert(dim >= 0);
       assert(static_cast<size_t>(dim) < read_refs_.size());
       return "[[_" + name() + "_r" + std::to_string(dim) + "]]";
+    }
+
+    std::string read_template_expr(int dim) const {
+      assert(dim >= 0);
+      assert(static_cast<size_t>(dim) < read_refs_.size());
+      return "*(uint64_t*)&([[_" + name() + "_r" + std::to_string(dim) + "]])";
     }
 
     static std::string inline_check_string(
@@ -502,15 +514,16 @@ class Statement {
       std::string inline_check_template() const {
         ArrayPack array_pack{R_, W_};
         std::string str;
-        const std::string diff_var = diff_template_name();
+        const std::string diff_var = diff_template_expr();
         const std::string sname = name();
         assert(read_refs_.size() == array_sizes_.size());
 
         str = "{\n";
-        str += array_pack.entry_function_preamble();
+        str += check_macro_def_string();
+        str += array_pack.nonentry_function_preamble();
 
         for(size_t i = 0; i < read_refs_.size(); i++) {
-            std::string args = read_template_name(i);//"[[_" + sname + "_r" + std::to_string(i) + "]]";
+            std::string args = read_template_expr(i);
             for(auto j = 0; j < array_sizes_[i]; j++) {
                 std::stringstream ss;
                 ss << "uint64_t " << read_ref_dim_string(i, j) << " = "
@@ -565,19 +578,27 @@ class Statement {
         //checks for read dim ids
         for(size_t i = 0; i < read_refs_.size(); i++) {
             for(auto j = 0; j < array_sizes_[i]; j++) {
-                str += diff_var+" |= " + read_dim_id_macro_name(i, j) +
-                       "(" + sinstance_args_string() + ")" + 
-                       " ^ " +
-                       read_ref_dim_string(i, j) +
-                       ";\n";
+              check_macro_use(diff_var,
+                              read_dim_id_macro_name(i, j) + "(" +
+                                  sinstance_args_string() + ")",
+                              read_ref_dim_string(i, j));
+              //              str +=
+              // diff_var + " |= " + read_dim_id_macro_name(i, j) + "(" +
+              // sinstance_args_string() + ")" + " ^ " +
+              // read_ref_dim_string(i, j) + ";\n";
             }
         }
         str += "\n";
         //checks for read version numbers
         for(auto i = 0U; i < read_refs_.size(); i++) {
-            str += diff_var + " |= " + read_ref_macro_name(i) + "(" +
-                   sinstance_args_string() + ")" + " ^ " +
-                   read_ref_ver_string(i) + ";\n";
+          str += check_macro_use(
+              diff_var,
+              read_ref_macro_name(i) + "(" + sinstance_args_string() + ")",
+              read_ref_ver_string(i));
+          //  str +=
+          // diff_var + " |= " + read_ref_macro_name(i) + "(" +
+          // sinstance_args_string() + ")" + " ^ " + read_ref_ver_string(i) +
+          // ";\n";
         }
         str += "\n";
 
@@ -585,7 +606,7 @@ class Statement {
             // SK: store version number rather than counter
             str += "if(" + diff_var + "==0) {\n";
 
-            std::string args = "[[_" + sname + "_w]]";
+            std::string args = write_template_expr(); //"[[_" + sname + "_w]]";
             for(auto j = 0; j < write_array_size_; j++) {
                 std::stringstream ss;
                 ss << "uint64_t " << write_ref_dim_string(j) << " = "
@@ -607,7 +628,7 @@ class Statement {
             }
             wargs.push_back("(1+("+write_ref_ver_string()+"))");
 
-            str += write_template_name() + " = " +
+            str += write_template_expr() + " = " +
                     array_pack.encode_string(write_array_name_, wargs) +
                     ";\n}\n";
         }
@@ -629,7 +650,8 @@ class Statement {
         }
         str += write_ref_macro_undef_string();
         str += array_pack.macro_undefs();
-        str += "\n}/*"+diff_var+"*/\n";
+        str += check_macro_undef_string();
+        str += "\n}/*" + diff_var + "*/\n";
         return str;
     }
 

@@ -103,4 +103,29 @@ static unsigned num_bits(uint64_t v) {
     return r + ((v1^(1<<r))>0);
 }
 
+//Generic polycheck macro
+
+std::string check_macro_name() { return "PC_CHECK"; }
+
+std::string check_macro_def_string() {
+  if (const char* env_p = std::getenv("POLYCHECK_DEBUG")) {
+    return "#define " + check_macro_name() + "(_dv,_e1,_e2)  " +
+           "do { assert((_e1) == (_e2)); (_dv) = 0; } while(0)\n";
+  } else {
+    return "#define " + check_macro_name() + "(_dv,_e1,_e2)  " +
+           "((_dv) |= (_e1)^(_e2))\n";
+  }
+}
+
+std::string check_macro_undef_string() {
+  return "#undef " + check_macro_name() + "\n";
+}
+
+std::string check_macro_use(const std::string& diff_var,
+                            const std::string& expr1,
+                            const std::string& expr2) {
+  return check_macro_name() + "(" + diff_var + ", " + expr1 + ", " + expr2 +
+         ");\n";
+}
+
 #endif // PolyCheck_util_hpp_

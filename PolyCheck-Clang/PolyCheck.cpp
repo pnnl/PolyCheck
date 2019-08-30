@@ -127,7 +127,7 @@ class Prolog {
             array_ref += "[" + join(args_vec, "][") + "]";
         }
         std::string pre =
-          "#define PC_PR(" + join(args_vec, ",") + ")\t" + array_ref + " = ";
+          "#define PC_PR(" + join(args_vec, ",") + ")\t *(uint64_t*)&(" + array_ref + ") = ";
         std::vector<std::string> args{args_vec};
         args.push_back("1");
         pre += prolog_obj.array_pack_.encode_string(array_name, args) + "\n";
@@ -178,9 +178,10 @@ class Epilog {
     }
 
     std::string to_string() const {
-        return "{\n" + array_pack_.nonentry_function_preamble() + str_ +
-               "\n assert(_diff == 0);\n" + array_pack_.macro_undefs() +
-               "\n}\n";
+      return "{\n" + check_macro_def_string() +
+             array_pack_.nonentry_function_preamble() + str_ +
+             "\n assert(_diff == 0);\n" + array_pack_.macro_undefs() +
+             check_macro_undef_string() + "\n}\n";
     }
 
     private:
@@ -212,10 +213,14 @@ class Epilog {
         if(ndim>0) {
             array_ref += "[" + join(args_vec, "][") + "]";
         }
+        // std::string ep_macro_def =
+        //   "#define PC_EP_CHECK(" + join(args_vec, ",") +
+        //   ")\t _diff |= 1 ^ (int)" +
+        //   array_pack.ver_decode_macro_use(array_name, array_ref) + "\n";
         std::string ep_macro_def =
-          "#define PC_EP_CHECK(" + join(args_vec, ",") +
-          ")\t _diff |= 1 ^ (int)" +
-          array_pack.ver_decode_macro_use(array_name, array_ref) + "\n";
+            "#define PC_EP_CHECK(" + join(args_vec, ",") +
+            ")\t "+check_macro_use("_diff", "1ul", "(uint64_t)" +
+            array_pack.ver_decode_macro_use(array_name, array_ref));
         std::string ep_macro_undef = "#undef PC_EP_CHECK\n";
         ep += ep_macro_def +
               replace_all(set_code, array_name + "(", "PC_EP_CHECK(") +
@@ -267,10 +272,15 @@ class Epilog {
         if(ndim>0) {
             array_ref += "[" + join(args_vec, "][") + "]";
         }
+        // std::string ep_macro_def =
+        //   "#define PC_EP_CHECK(" + join(args_vec, ",") + ")\t _diff |= (1+(" +
+        //   poly_code + ")) ^ (int)" +
+        //   array_pack.ver_decode_macro_use(array_name, array_ref) + "\n";
         std::string ep_macro_def =
-          "#define PC_EP_CHECK(" + join(args_vec, ",") + ")\t _diff |= (1+(" +
-          poly_code + ")) ^ (int)" +
-          array_pack.ver_decode_macro_use(array_name, array_ref) + "\n";
+            "#define PC_EP_CHECK(" + join(args_vec, ",") + ")\t " +
+            check_macro_use("_diff", "(1ul+(" + poly_code + "))",
+                            "(uint64_t)" + array_pack.ver_decode_macro_use(
+                                               array_name, array_ref));
         std::string ep_macro_undef = "#undef PC_EP_CHECK\n";
         ep += ep_macro_def +
               replace_all(set_code, array_name + "(", "PC_EP_CHECK(") +
@@ -336,14 +346,15 @@ std::vector<char*> split_to_args(const std::string& str) {
 int main(int argc, char* argv[]) {
     //assert(argc == 5);
     std::string filename{argv[1]};
-    std::string target{argv[3]};
+    std::string target{argv[2]};
 
     struct pet_options* options = pet_options_new_with_defaults();
     isl_ctx* ctx = isl_ctx_alloc_with_options(&pet_options_args, options);
-    std::vector<char*> pet_args = split_to_args(argv[2]);
-    //isl_ctx_parse_options(ctx, argc-2, argv+2, ISL_ARG_ALL);
-    pet_args.insert(pet_args.begin(), strdup("blah"));
-    isl_ctx_parse_options(ctx, pet_args.size(), pet_args.data(), ISL_ARG_ALL);
+    if (const char* env_p = std::getenv("POLYCHECK_PET_ARGS")) {
+      std::vector<char*> pet_args = split_to_args(env_p);
+      pet_args.insert(pet_args.begin(), strdup("blah"));
+      isl_ctx_parse_options(ctx, pet_args.size(), pet_args.data(), ISL_ARG_ALL);
+    }
     struct pet_scop* scop =
       pet_scop_extract_from_C_source(ctx, filename.c_str(), NULL);
 
@@ -422,11 +433,12 @@ int main(int argc, char* argv[]) {
     ParseScop(target, stmts, prologue, epilogue, output_file_name(target));
     stmts.clear();
 
-    std::ofstream of{std::string{"defs_"}+argv[3], ios::out};
+    std::string target_defs{std::string{"defs_"} + argv[2]};
+    std::ofstream of{target_defs, ios::out};
     of<<num_bits_func<<"\n";
     of<<array_pack.global_decls()<<"\n";
     of.close();
-    std::cout<<"Defs written to "<<std::string{"defs_"}+argv[3]<<"\n";
+    std::cout<<"Defs written to "<<target_defs<<"\n";
 #endif
     isl_schedule_free(isched);
     islw::destruct(R, W, S);
