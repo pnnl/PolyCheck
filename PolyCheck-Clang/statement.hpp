@@ -575,18 +575,27 @@ class Statement {
                    sinstance_macro_name(i) + sinstance_args + ";\n";
         }
 
+        // checks for array ids
+        for (size_t i = 0; i < read_refs_.size(); i++) {
+          str +=
+              check_macro_use(diff_var,
+                              array_pack.id_decode_macro_use(
+                                  read_array_names_[i], read_template_expr(i)),
+                              array_pack.id_string(read_array_names_[i]));
+        }
+
         //checks for read dim ids
         for(size_t i = 0; i < read_refs_.size(); i++) {
-            for(auto j = 0; j < array_sizes_[i]; j++) {
-              check_macro_use(diff_var,
-                              read_dim_id_macro_name(i, j) + "(" +
-                                  sinstance_args_string() + ")",
-                              read_ref_dim_string(i, j));
-              //              str +=
-              // diff_var + " |= " + read_dim_id_macro_name(i, j) + "(" +
-              // sinstance_args_string() + ")" + " ^ " +
-              // read_ref_dim_string(i, j) + ";\n";
-            }
+          for (auto j = 0; j < array_sizes_[i]; j++) {
+            str += check_macro_use(diff_var,
+                                   read_dim_id_macro_name(i, j) + "(" +
+                                       sinstance_args_string() + ")",
+                                   read_ref_dim_string(i, j));
+            //              str +=
+            // diff_var + " |= " + read_dim_id_macro_name(i, j) + "(" +
+            // sinstance_args_string() + ")" + " ^ " +
+            // read_ref_dim_string(i, j) + ";\n";
+          }
         }
         str += "\n";
         //checks for read version numbers

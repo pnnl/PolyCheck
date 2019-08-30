@@ -640,7 +640,13 @@ class ArrayPack {
         return ret;
     }
 
-    private:
+    std::string id_string(const std::string& array_name) const {
+      assert(info_.find(array_name) != info_.end());
+      const auto& info = info_.find(array_name)->second;
+      return std::to_string(info.id());
+    }
+
+   private:
     std::map<std::string,ArrayInfo> info_;
 }; // class ArrayPack
 
