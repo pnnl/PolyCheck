@@ -480,6 +480,7 @@ class Statement {
         const std::vector<Statement>& matched_stmts,
         const std::vector<std::vector<std::string>>& wlvals,
         const std::vector<std::vector<std::string>>& rlvals) {
+      assert(matched_stmts.size()>0);
       assert(matched_stmts.size() == wlvals.size());
       assert(wlvals.size() == rlvals.size());
       for (size_t i = 0; i < matched_stmts.size(); i++) {
@@ -504,9 +505,11 @@ class Statement {
         }
         ret += "{\n" + tmpl + "\n}\n";
       }
-      for (size_t i = 0; i < matched_stmts.size(); i++) {
-        ret += "_diff |= " + dname(i) + ";\n";
+      ret += "_diff |= "+dname(0);
+      for (size_t i = 1; i < matched_stmts.size(); i++) {
+        ret += " * " + dname(i);
       }
+      ret += ";\n";
       ret += "}\n//---end checks---\n";
       return ret;
     }
