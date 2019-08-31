@@ -90,12 +90,14 @@ class Prolog {
                               isl_union_map_range(islw::copy(W)));
         // isl_union_set_foreach_set(RW, fn_prolog_per_set, &this->str_);
         isl_union_set_foreach_set(RW, fn_prolog_per_set, this);
+        cardinality_checks(W);
         islw::destruct(RW);
     }
 
     std::string to_string() const {
         return "#include <assert.h>\n int _diff = 0;\n{\n" +
                array_pack_.entry_function_preamble() + str_ +
+               cardinality_str_ +
                array_pack_.macro_undefs() + "\n}\n";
     }
 
@@ -138,7 +140,113 @@ class Prolog {
         return isl_stat_ok;
     }
 
+    void cardinality_checks(isl_union_map* W) {
+      auto W2S = isl_union_map_reverse(islw::copy(W));
+      auto wcard = isl_union_map_card(islw::copy(W2S));
+
+      struct Args {
+        std::map<std::string, std::string> qpmap;
+        ArrayPack* array_pack;
+      };
+      Args args;
+      args.array_pack = &array_pack_;
+      auto process_pw_qpoly = [](__isl_take isl_pw_qpolynomial* pwqp,
+                                 void* user) -> isl_stat {
+        assert(pwqp);
+        assert(user);
+        Args& args = *(Args*)user;
+        std::map<std::string, std::string>& qpmap = args.qpmap;
+        ArrayPack& array_pack = *args.array_pack;
+        auto sp = isl_pw_qpolynomial_get_space(pwqp);
+        std::string qp_aname{isl_space_get_tuple_name(sp, isl_dim_in)};
+        islw::destruct(sp);
+        //@bug @todo If found, this qp should be merged with that one
+        assert(qpmap.find(qp_aname) == qpmap.end());
+
+        // std::cout << "pwqp as string :---\n"
+        //           << islw::to_string(pwqp) << "\n---\n";
+        int dim = isl_pw_qpolynomial_dim(pwqp, isl_dim_in);
+        assert(dim == array_pack.ndim(qp_aname));
+        for (int i = 0; i < dim; i++) {
+          std::string str{"c" + std::to_string(i)};
+          pwqp =
+              isl_pw_qpolynomial_set_dim_name(pwqp, isl_dim_in, i, str.c_str());
+        }
+        qpmap[qp_aname] = islw::to_c_string(pwqp);
+        // std::cout << "pwqp array name: " << qp_aname << "---\n";
+        // std::cout << "pwqp as c string :---\n"
+        //           << islw::to_c_string(pwqp) << "\n---\n";
+        islw::destruct(pwqp);
+        return isl_stat_ok;
+      };
+
+      isl_union_pw_qpolynomial_foreach_pw_qpolynomial(wcard, process_pw_qpoly,
+                                                      (void*)&args);
+      auto& qpmap = args.qpmap;
+      std::vector<std::string> array_names = array_pack_.array_names();
+      for (const auto& aname : array_names) {
+        if (qpmap.find(aname) == qpmap.end()) {
+          qpmap[aname] = " 0";
+        }
+        for (int c = 0; c <= 9; c++) {
+          qpmap[aname] = replace_all(qpmap[aname], " " + std::to_string(c),
+                                     " (uint64_t)" + std::to_string(c));
+        }
+      }
+
+      //   std::cout << "-----------qmpap----------\n";
+      //   for (const auto& qp : qpmap) {
+      //     std::cout << qp.first << ": &&" << qp.second << "&&\n";
+      //   }
+      //   std::cout << "----------------------\n";
+
+      cardinality_str_ = "{\n/* max version check */\n";
+      cardinality_str_ += "#include <assert.h>\n";
+      std::vector<std::string> macro_defs, macro_undefs;
+      auto macro_name = [](const std::string& aname) -> std::string {
+        return "PC_CARD_" + aname;
+      };
+      auto args_fn = [](int dim) -> std::string {
+        std::vector<std::string> retv;
+        for (int i = 0; i < dim; i++) {
+          retv.push_back("c" + std::to_string(i));
+        }
+        return "(" + join(retv, ", ") + ")";
+      };
+      for (const auto& aname : array_names) {
+        assert(qpmap.find(aname) != qpmap.end());
+        const std::string iargs = args_fn(array_pack_.ndim(aname));
+        macro_defs.push_back("#define " + macro_name(aname) + iargs +
+                             " ("+qpmap[aname]+")");
+        macro_undefs.push_back("#undef " + macro_name(aname));
+      }
+      cardinality_str_ += join(macro_defs, "\n") + "\n";
+      for (const auto& aname : array_names) {
+          cardinality_str_ += "uint64_t _d_"+aname+" = 0;\n";
+      }
+      std::string code = islw::to_c_string(W2S);
+      //to avoid duplicated replacements
+      for (const auto& aname : array_names) {
+        code = replace_all(code, aname+"(", "[["+aname+"]](");
+      }
+      for (const auto& aname : array_names) {
+        code = replace_all(code, "[["+aname+"]](",
+                           "_d_" + aname +
+                               " |= " + array_pack_.maxver_variable(aname) +
+                               " > " + macro_name(aname)+"(");
+      }
+      cardinality_str_ += code;
+      for (const auto& aname : array_names) {
+        cardinality_str_ += "assert(_d_" + aname + " == 0);\n";
+      }
+      cardinality_str_ += join(macro_undefs, "\n") + "\n";
+      cardinality_str_ += "\n} /* max version check */\n";
+      //   std::cout << "CARD CHECK CODE=\n" << result << "\n";
+      islw::destruct(wcard, W2S);
+      }
+
     std::string str_;
+    std::string cardinality_str_;
     ArrayPack array_pack_;
 }; // class Prolog
 
@@ -413,6 +521,7 @@ int main(int argc, char* argv[]) {
     const std::string prologue = prolog(R, W) + "\n";
     const std::string epilogue = epilog(R, W);
     std::cout << "Prolog\n------\n" << prologue << "\n----------\n";
+#if 1
     std::cout << "Epilog\n------\n" << epilogue << "\n----------\n";
     std::cout << "#statements=" << scop->n_stmt << "\n";
     ArrayPack array_pack{R, W};
@@ -431,7 +540,6 @@ int main(int argc, char* argv[]) {
                   << stmt.inline_check_template() << "---------\n";
     }
     ParseScop(target, stmts, prologue, epilogue, output_file_name(target));
-    stmts.clear();
 
     std::string target_defs{std::string{"defs_"} + argv[2]};
     std::ofstream of{target_defs, ios::out};
@@ -439,6 +547,8 @@ int main(int argc, char* argv[]) {
     of<<array_pack.global_decls()<<"\n";
     of.close();
     std::cout<<"Defs written to "<<target_defs<<"\n";
+#endif
+    stmts.clear();
 #endif
     isl_schedule_free(isched);
     islw::destruct(R, W, S);

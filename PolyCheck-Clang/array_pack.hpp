@@ -546,6 +546,30 @@ class ArrayPack {
         }
     }
 
+    int num_arrays() const {
+        return info_.size();
+    }
+
+    std::vector<std::string> array_names() const {
+        std::vector<std::string> names;
+        for(const auto& el : info_) {
+            names.push_back(el.first);
+        }
+        return names;
+    }
+
+    int ndim(const std::string& array_name) const {
+      assert(info_.find(array_name) != info_.end());
+      const auto& info = info_.find(array_name)->second;
+      return info.ndim();
+    }
+
+    std::string maxver_variable(const std::string& array_name) const {
+      assert(info_.find(array_name) != info_.end());
+      const auto& info = info_.find(array_name)->second;
+      return info.maxver_variable();
+    }
+
     std::string encode_string(const std::string& array_name,
                               const std::vector<std::string>& args) const {
         assert(info_.find(array_name) != info_.end());
