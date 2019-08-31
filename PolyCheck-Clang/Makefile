@@ -34,7 +34,7 @@ CLANGLIBS = \
 
 #-lm -lfl -lrose -lboost_system
 LIBRARY_FLAGS = -L$(GMP_INSTALL_PATH)/lib -L$(BARVINOK_INSTALL_PATH)/lib -L$(NTL_INSTALL_PATH)/lib -lbarvinok -lpet -lisl -lntl -lgmp -lpolylibgmp $(CFLAGS) $(CLANG_BUILD_FLAGS) $(CLANGLIBS) `$(LLVM_CONFIG_COMMAND)`
-CXXFLAGS = -DSYSROOT="\"`xcrun --show-sdk-path`\"" -isysroot `xcrun --show-sdk-path` -Wno-unused-variable -g -Wall $(CFLAGS) -I . -I utilities/ -I$(GMP_INSTALL_PATH)/include -I$(BARVINOK_INSTALL_PATH)/include -I$(NTL_INSTALL_PATH)/include $(CLANG_BUILD_FLAGS) `$(LLVM_CONFIG_COMMAND)`
+CXXFLAGS = -Wno-unused-variable -g -Wall $(CFLAGS) -I . -I utilities/ -I$(GMP_INSTALL_PATH)/include -I$(BARVINOK_INSTALL_PATH)/include -I$(NTL_INSTALL_PATH)/include $(CLANG_BUILD_FLAGS) `$(LLVM_CONFIG_COMMAND)`
 
 TEMP0_FILES = $(SOURCE_FILES:.cpp=.o)
 TEMP1_FILES = $(TEMP0_FILES:.C=.o)

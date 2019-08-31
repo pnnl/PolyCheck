@@ -2,13 +2,14 @@
 Prerequisites
 --------------
 
-- LLVM/Clang >= 5.0 (currently tested with versions 5 & 6 only)
+- LLVM/Clang >= 7.0 (currently tested with versions 7 & 8 only)
     - `MACOSX`: brew install llvm
 
 - GNU GMP from: https://gmplib.org
-    - `MACOSX`: brew install libgmp
+    - `MACOSX`: brew install gmp
 
 - NTL: A Library for doing Number Theory
+    - `MACOSX`: brew install ntl
     ```
     wget http://www.shoup.net/ntl/ntl-10.5.0.tar.gz
     tar xvf ntl-10.5.0.tar.gz
@@ -21,20 +22,17 @@ Prerequisites
 - Barvinok (will automatically install remaining prerequisites: pet, isl, polylib):  
    - `MACOSX NOTE:` barvinok does not currently build with brew installed gcc, please use the default gcc or brew installed llvm
     ```
-    wget http://barvinok.gforge.inria.fr/barvinok-0.41.tar.gz
-    tar xf barvinok-0.41.tar.gz
-    cd barvinok-0.41
+    wget http://barvinok.gforge.inria.fr/barvinok-0.41.2.tar.gz
+    tar xf barvinok-0.41.2.tar.gz
+    cd barvinok-0.41.2
     
-    export BARVINOK_INSTALL_PATH=$HOME/barvinok
-    ./configure --prefix=$BARVINOK_INSTALL_PATH NTL_GMP_LIP=on 
-    --with-gmp-prefix=/usr/local --with-ntl-prefix=$HOME/ntl
-    --with-pet=bundled --with-clang-prefix=/usr/local/opt/llvm CXXFLAGS='-fno-rtti'
-    make install
+    export BARVINOK_INSTALL_PATH=$HOME/barvinok-0.41.2
+    ./configure --prefix=$BARVINOK_INSTALL_PATH NTL_GMP_LIP=on \
+    --with-gmp-prefix=/usr/local/opt/gmp --with-ntl-prefix=/usr/local/opt/ntl \
+    --with-pet=bundled  --with-clang-prefix=/usr/local/opt/llvm \
+    CXXFLAGS='-fno-rtti' \
+    [CPPFLAGS="-isysroot `xcrun --show-sdk-path`"] (for `MACOSX`)
 
-    cp pet/context.h $BARVINOK_INSTALL_PATH/include/
-    cp pet/summary.h $BARVINOK_INSTALL_PATH/include/
-    cp pet/expr.h $BARVINOK_INSTALL_PATH/include/
-    cp pet/expr_access_type.h $BARVINOK_INSTALL_PATH/include/
   ```
 
 Building PolyCheck-Clang  
@@ -45,7 +43,7 @@ Building PolyCheck-Clang
     NTL_INSTALL_PATH = $HOME/ntl  
     BARVINOK_INSTALL_PATH = $HOME/barvinok  
     LLVM_INSTALL_PATH = /usr/local/opt/llvm
-    (Optional) GMP_INSTALL_PATH = /usr/local
+    (Optional) GMP_INSTALL_PATH = /usr/local/opt/gmp
     ```
 
 - Using CMake
@@ -65,5 +63,7 @@ Running PolyCheck-Clang
 	`Syntax: PolyCheck source.c transformed.c`
     ```	
 	cd PolyCheck-Clang
-    ./PolyCheck gemm.c gemm.c
+    export POLYCHECK_SYSROOT=`xcrun --show-sdk-path`
+    export POLYCHECK_PET_ARGS="-I`xcrun --show-sdk-path`/usr/include"
+    ./PolyCheck gemm.c gemm.c 
     ```
