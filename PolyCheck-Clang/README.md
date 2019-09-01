@@ -26,23 +26,24 @@ Prerequisites
     tar xf barvinok-0.41.2.tar.gz
     cd barvinok-0.41.2
     
-    export BARVINOK_INSTALL_PATH=$HOME/barvinok-0.41.2
-    ./configure --prefix=$BARVINOK_INSTALL_PATH NTL_GMP_LIP=on \
-    --with-gmp-prefix=/usr/local/opt/gmp --with-ntl-prefix=/usr/local/opt/ntl \
-    --with-pet=bundled  --with-clang-prefix=/usr/local/opt/llvm \
-    CXXFLAGS='-fno-rtti' \
-    [CPPFLAGS="-isysroot `xcrun --show-sdk-path`"] (for `MACOSX`)
+    export PATH="/usr/local/opt/llvm@7/bin":$PATH
+    CC=clang CXX=clang++ \
+    ./configure --prefix=$HOME/barvinok NTL_GMP_LIP=on --with-gmp-prefix=/usr/local/opt/gmp \
+    --with-ntl-prefix=/usr/local/opt/ntl --with-pet=bundled CXXFLAGS='-fno-rtti' \
+    [CPPFLAGS="-isysroot `xcrun --show-sdk-path`"] (for `MACOSX` build)
 
   ```
 
 Building PolyCheck-Clang  
 ------------------------
    
-- Makefile based build: Edit the following lines in Makefile and run make  
+- Makefile based build: 
+    export PATH="/usr/local/opt/llvm@7/bin":$PATH
+    Edit the following lines in Makefile accordingly and run make  
     ```
-    NTL_INSTALL_PATH = $HOME/ntl  
+    NTL_INSTALL_PATH = /usr/local/opt/ntl  
     BARVINOK_INSTALL_PATH = $HOME/barvinok  
-    LLVM_INSTALL_PATH = /usr/local/opt/llvm
+    LLVM_INSTALL_PATH = /usr/local/opt/llvm@7
     (Optional) GMP_INSTALL_PATH = /usr/local/opt/gmp
     ```
 
