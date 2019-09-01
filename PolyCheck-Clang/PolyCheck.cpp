@@ -233,7 +233,7 @@ class Prolog {
         code = replace_all(code, "[["+aname+"]](",
                            "_d_" + aname +
                                " |= " + array_pack_.maxver_variable(aname) +
-                               " > " + macro_name(aname)+"(");
+                               " <= " + macro_name(aname)+"(");
       }
       cardinality_str_ += code;
       for (const auto& aname : array_names) {
@@ -316,7 +316,7 @@ class Epilog {
             args_vec.push_back(str);
         }
         std::string array_name{isl_set_get_tuple_name(iset)};
-        std::string array_ref = array_name;
+        std::string array_ref = "*(uint64_t*)&" + array_name;
 
         if(ndim>0) {
             array_ref += "[" + join(args_vec, "][") + "]";
@@ -376,7 +376,7 @@ class Epilog {
             args_vec.push_back(str);
         }
         std::string array_name{isl_set_get_tuple_name(set)};
-        std::string array_ref = array_name;
+        std::string array_ref = "*(uint64_t*)&" + array_name;
         if(ndim>0) {
             array_ref += "[" + join(args_vec, "][") + "]";
         }

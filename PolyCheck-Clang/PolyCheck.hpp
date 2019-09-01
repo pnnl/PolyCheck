@@ -681,6 +681,7 @@ int ParseScop(string fileName, std::vector<Statement> &stmts, string prologue, s
   HeaderSearchOptions& hdr_opt = TheCompInst.getHeaderSearchOpts();
 
 #if defined(SYSROOT)
+      //HeaderSearchOptions &hdr_opt = TheCompInst.getHeaderSearchOpts();
   //hdr_opt.Sysroot = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk";
   hdr_opt.Sysroot = SYSROOT;
 #endif

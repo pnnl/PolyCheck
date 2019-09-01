@@ -556,7 +556,7 @@ class Statement {
           // decode read version numbers
           ss << "uint64_t " << read_ref_ver_string(i) << " = ("
              << array_pack.ver_decode_macro_use(read_array_names_[i], args)
-             << ")- 1;\n";
+             << ");\n";
           str += ss.str();
         }
 
