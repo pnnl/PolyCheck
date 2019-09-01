@@ -20,7 +20,6 @@ Prerequisites
     ```
 
 - Barvinok (will automatically install remaining prerequisites: pet, isl, polylib):  
-   - `MACOSX NOTE:` barvinok does not currently build with brew installed gcc, please use the default gcc or brew installed llvm
     ```
     wget http://barvinok.gforge.inria.fr/barvinok-0.41.2.tar.gz
     tar xf barvinok-0.41.2.tar.gz
@@ -36,10 +35,11 @@ Prerequisites
 
 Building PolyCheck-Clang  
 ------------------------
-   
-- Makefile based build: 
-    export PATH="/usr/local/opt/llvm@7/bin":$PATH
-    Edit the following lines in Makefile accordingly and run make  
+
+`export PATH="/usr/local/opt/llvm@7/bin":$PATH`  
+
+- `Makefile` based build.  
+    Edit the following lines in `Makefile` accordingly and run `make`:    
     ```
     NTL_INSTALL_PATH = /usr/local/opt/ntl  
     BARVINOK_INSTALL_PATH = $HOME/barvinok  
@@ -47,7 +47,7 @@ Building PolyCheck-Clang
     (Optional) GMP_INSTALL_PATH = /usr/local/opt/gmp
     ```
 
-- Using CMake
+- Using `CMake`
   	```
 	cd PolyCheck-Clang
 	mkdir build && cd build
@@ -63,7 +63,6 @@ Running PolyCheck-Clang
 - Sample input files are in `tests/polybench`  
 	`Syntax: PolyCheck source.c transformed.c`
     ```	
-	cd PolyCheck-Clang
     export POLYCHECK_SYSROOT=`xcrun --show-sdk-path`
     export POLYCHECK_PET_ARGS="-I`xcrun --show-sdk-path`/usr/include"
     ./PolyCheck gemm.c gemm.c 

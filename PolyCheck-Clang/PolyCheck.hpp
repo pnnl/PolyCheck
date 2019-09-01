@@ -412,7 +412,7 @@ public:
 
 #else
           std::vector<Expr*> expr_rlvals;
-          TraverseExpr_getLValues (lhs, expr_rlvals);
+          if (b->isCompoundAssignmentOp()) TraverseExpr_getLValues (lhs, expr_rlvals);
           TraverseExpr_getLValues (rhs, expr_rlvals);
           std::vector<Statement> matched_stmts;
           std::vector<std::vector<std::string> > wlvals;
