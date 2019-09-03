@@ -472,6 +472,67 @@ int main(int argc, char* argv[]) {
     isl_schedule* isched = pet_scop_get_schedule(scop);
     S = isl_schedule_get_map(isched);
 
+    std::vector<std::string> excl = {"i", "j", "k", "l", "m", "n", "p", "q", "r", "s"};
+
+    std::set<int> read_stmt_numbers;
+    auto extract_read_stmts = [&](__isl_keep isl_map* map) {
+      // std::cout << "\n--------\n";
+      // std::cout << "map=" << islw::to_string(map) << "\n";
+      bool has_array_name = isl_map_has_tuple_name(map, isl_dim_out);
+      bool has_stmt_name = isl_map_has_tuple_name(map, isl_dim_in);
+      // std::cout << "has range name = " << has_array_name << "\n";
+      assert(has_array_name);  // without this the code will
+                               // not work
+      assert(has_stmt_name);   // without this the code will
+                               // not work
+      std::string array_name{isl_map_get_tuple_name(map, isl_dim_out)};
+      std::string stmt_name{isl_map_get_tuple_name(map, isl_dim_in)};
+      // std::cout << "range array name=" << array_name << "\n";
+      if (std::find(excl.begin(), excl.end(), array_name) != excl.end()) {
+        std::cout << "Excluded variables are being read. "
+                     "Cannot handle this case. Exiting.\n";
+        exit(-1);
+      }
+      assert(stmt_name.size() > 2); //to extract statement number
+      read_stmt_numbers.insert(atoi(stmt_name.c_str()+2));
+    };
+    islw::foreach(R, extract_read_stmts);
+
+    std::set<int> write_stmt_numbers;
+    isl_union_map* Wprime = nullptr;
+    auto extract_write_stmts = [&](__isl_keep isl_map* map) {
+      // std::cout << "\n--------\n";
+      // std::cout << "map=" << islw::to_string(map) << "\n";
+      bool has_array_name = isl_map_has_tuple_name(map, isl_dim_out);
+      bool has_stmt_name = isl_map_has_tuple_name(map, isl_dim_in);
+      // std::cout << "has range name = " << has_array_name << "\n";
+      assert(has_array_name);  // without this the code will
+                               // not work
+      assert(has_stmt_name);   // without this the code will
+                               // not work
+      std::string array_name{isl_map_get_tuple_name(map, isl_dim_out)};
+      std::string stmt_name{isl_map_get_tuple_name(map, isl_dim_in)};
+      // std::cout << "range array name=" << array_name << "\n";
+      if (std::find(excl.begin(), excl.end(), array_name) == excl.end()) {
+        if (Wprime == nullptr) {
+          Wprime = isl_union_map_from_map(islw::copy(map));
+        } else {
+          Wprime = isl_union_map_union(Wprime,
+                                       isl_union_map_from_map(islw::copy(map)));
+        }
+        assert(stmt_name.size() > 2);  // to extract statement number
+        write_stmt_numbers.insert(atoi(stmt_name.c_str() + 2));
+      }
+    };
+    islw::foreach(W, extract_write_stmts);
+
+    std::set<int> all_stmt_numbers {read_stmt_numbers};
+    all_stmt_numbers.insert(write_stmt_numbers.begin(), write_stmt_numbers.end());
+
+    // std::cout << "Write map with exclusions:" << islw::to_c_string(Wprime)
+    //           << "\n";
+    islw::destruct(W);
+    W = Wprime;
 #if 0//for testing and prototyping
     ArrayPack array_pack{R, W};
     std::cout<<"//DECLS:\n"<<array_pack.global_decls()<<"\n";
@@ -488,31 +549,39 @@ int main(int argc, char* argv[]) {
     // islw::foreach(RW_R, [&](__isl_keep isl_set* iset) {
     //     assert(isl_bool_true == isl_set_has_tuple_name(iset));
     //     std::cout << "xx... " << isl_set_get_tuple_name(iset) << "\n";
-    //     const std::string name{isl_set_get_tuple_name(iset)}; 
+    //     const std::string name{isl_set_get_tuple_name(iset)};
     //     if(array_names_to_int.find(name) == array_names_to_int.end()) {
     //         array_names_to_int[name] = ctr++;
     //     }
     //     //array_names.insert(std::string(isl_set_get_tuple_name(iset)));
     //     // std::cout<<islw::to_string(iset)<<"\n";
-    //     // std::cout<<islw::to_string(isl_set_gist(islw::copy(iset), islw::context(iset)))<<"\n";
+    //     // std::cout<<islw::to_string(isl_set_gist(islw::copy(iset),
+    //     islw::context(iset)))<<"\n";
     //     // std::cout<<islw::to_string(isl_set_get_tuple_id(iset))<<"\n";
     // });
     // std::cout<<"All array refs= "<<islw::to_string(RW_R)<<"\n";
-    // // std::cout<<"All array refs= "<<islw::to_string(isl_union_set_get_space( islw::copy(RW_R)))<<"\n";
+    // // std::cout<<"All array refs=
+    // "<<islw::to_string(isl_union_set_get_space( islw::copy(RW_R)))<<"\n";
     // std::cout<<"Array names:\n";
     // for (const auto& it : array_names_to_int) {
     //     std::cout<<"  |"<<it.first<<"="<<it.second<<"|\n";
     // }
     // islw::destruct(RW_R);
+
 #else
     //std::vector<std::string> inline_checks;
     std::vector<Statement> stmts;
     {
-        for(int i = 0; i < scop->n_stmt; i++) {
-            auto l = pet_loc_get_line(scop->stmts[i]->loc);
-            std::cout << "---------#statement " << i << " in line: " << l << "------------\n";
-            if(l!=-1) stmts.push_back(Statement{i, scop});
+      for (int i = 0; i < scop->n_stmt; i++) {
+        if (all_stmt_numbers.find(i) == all_stmt_numbers.end()) {
+          // stmts.push_back(Statement{});
+          continue;
         }
+        auto l = pet_loc_get_line(scop->stmts[i]->loc);
+        std::cout << "---------#statement " << i << " in line: " << l
+                  << "------------\n";
+        if (l != -1) stmts.push_back(Statement{i, scop});
+      }
         // for(const auto& stmt : stmts) {
         //     inline_checks.push_back(stmt.inline_checks());
         // }
@@ -521,21 +590,21 @@ int main(int argc, char* argv[]) {
     const std::string prologue = prolog(R, W) + "\n";
     const std::string epilogue = epilog(R, W);
     std::cout << "Prolog\n------\n" << prologue << "\n----------\n";
-#if 1
     std::cout << "Epilog\n------\n" << epilogue << "\n----------\n";
     std::cout << "#statements=" << scop->n_stmt << "\n";
     ArrayPack array_pack{R, W};
     std::cout << "//GLOBAL DECLARATIONS:\n-------------------\n"
               << array_pack.global_decls() << "\n"
-              <<"-----------------------\n";
-    //std::cout << "Inline checks\n------\n";
+              << "-----------------------\n";
+    // std::cout << "Inline checks\n------\n";
     // for(size_t i=0; i<inline_checks.size(); i++) {
     //     std::cout<<"  Statement "<<i<<"\n  ---\n"<<inline_checks[i]<<"\n";
     // }
-    std::cout<<"-------\n";
+    std::cout << "-------\n";
 
-    for(const auto stmt : stmts) {
-        std::cout << "//TEMPLATE for statement " << stmt.name()
+#if 1
+    for (const auto stmt : stmts) {
+      std::cout << "//TEMPLATE for statement " << stmt.name()
                   << ":\n---------\n"
                   << stmt.inline_check_template() << "---------\n";
     }
@@ -546,7 +615,7 @@ int main(int argc, char* argv[]) {
     of<<num_bits_func<<"\n";
     of<<array_pack.global_decls()<<"\n";
     of.close();
-    std::cout<<"Defs written to "<<target_defs<<"\n";
+    std::cout << "Defs written to " << target_defs << "\n";
 #endif
     stmts.clear();
 #endif
