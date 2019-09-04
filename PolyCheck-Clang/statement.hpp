@@ -127,9 +127,15 @@ class Statement {
     return *this;
   }
 
-  Statement(int stmt_id, pet_scop* pscop) : stmt_id_{stmt_id} {
-    R_ = pet_scop_get_may_reads(pscop);
-    W_ = pet_scop_get_may_writes(pscop);
+  Statement(int stmt_id, pet_scop* pscop, isl_union_map* R = nullptr,
+            isl_union_map* W = nullptr)
+      : R_{islw::copy(R)}, W_{islw::copy(W)}, stmt_id_{stmt_id} {
+    if(R_ == nullptr) {
+      R_ = pet_scop_get_may_reads(pscop);
+    }
+    if(W_ == nullptr) {
+      W_ = pet_scop_get_may_writes(pscop);
+    }
     isched_ = pet_scop_get_schedule(pscop);
     S_ = isl_schedule_get_map(isched_);
 
@@ -177,7 +183,7 @@ class Statement {
         construct_write_dim_macro_args();
         construct_sinstance_macros();
         //islw::destruct(R, W, isched, S);
-    }
+  }
 
     ~Statement() {
         islw::destruct(R_, W_, isched_, S_);

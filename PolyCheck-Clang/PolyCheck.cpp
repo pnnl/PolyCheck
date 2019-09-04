@@ -580,7 +580,7 @@ int main(int argc, char* argv[]) {
         auto l = pet_loc_get_line(scop->stmts[i]->loc);
         std::cout << "---------#statement " << i << " in line: " << l
                   << "------------\n";
-        if (l != -1) stmts.push_back(Statement{i, scop});
+        if (l != -1) stmts.push_back(Statement{i, scop, R, W});
       }
         // for(const auto& stmt : stmts) {
         //     inline_checks.push_back(stmt.inline_checks());
