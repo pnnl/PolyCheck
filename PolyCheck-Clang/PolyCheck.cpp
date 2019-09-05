@@ -472,7 +472,7 @@ int main(int argc, char* argv[]) {
     isl_schedule* isched = pet_scop_get_schedule(scop);
     S = isl_schedule_get_map(isched);
 
-    std::vector<std::string> excl = {"i", "j", "k", "l", "m", "n", "p", "q", "r", "s"};
+    std::vector<std::string> excl = {"i", "j", "k", "l", "m", "n", /*"p", "q", "r", "s",*/ "t"};
 
     std::set<int> read_stmt_numbers;
     auto extract_read_stmts = [&](__isl_keep isl_map* map) {
@@ -489,7 +489,7 @@ int main(int argc, char* argv[]) {
       std::string stmt_name{isl_map_get_tuple_name(map, isl_dim_in)};
       // std::cout << "range array name=" << array_name << "\n";
       if (std::find(excl.begin(), excl.end(), array_name) != excl.end()) {
-        std::cout << "Excluded variables are being read. "
+        std::cout << "Excluded variable \""<<array_name<<"\" is being read. "
                      "Cannot handle this case. Exiting.\n";
         exit(-1);
       }
