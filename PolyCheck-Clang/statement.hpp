@@ -553,14 +553,14 @@ class Statement {
           std::string args = read_expr_eval(i);
           for (auto j = 0; j < array_sizes_[i]; j++) {
             std::stringstream ss;
-            ss << "uint64_t " << read_ref_dim_string(i, j) << " = "
+            ss << "int64_t " << read_ref_dim_string(i, j) << " = "
                << array_pack.dim_decode_macro_use(read_array_names_[i], j, args)
                << ";\n";
             str += ss.str();
           }
           std::stringstream ss;
           // decode read version numbers
-          ss << "uint64_t " << read_ref_ver_string(i) << " = ("
+          ss << "int64_t " << read_ref_ver_string(i) << " = ("
              << array_pack.ver_decode_macro_use(read_array_names_[i], args)
              << ");\n";
           str += ss.str();
@@ -602,7 +602,7 @@ class Statement {
         std::string sinstance_args = "(" + join(sinstance_argsv, ", ") + ")";
 
         for(int i = 0; i < dim(); i++) {
-            str += "uint64_t " + sinstance_dim_string(i) + " = " +
+            str += "int64_t " + sinstance_dim_string(i) + " = " +
                    sinstance_macro_name(i) + sinstance_args + ";\n";
         }
 
