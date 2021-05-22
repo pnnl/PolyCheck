@@ -1,3 +1,38 @@
+New PolyCheck NOTES:
+
+TODO:
+
+- Add to check to make sure max number of versions fits in bitwidth available
+
+DONE - Add check that cardinality fits in space available for each. Do we need this if the max cardinality fits? - NO
+
+DONE - See if we need all the calls to num_bits. Preferably have them only in prolog and epilog.
+
+DONE - Check the array ids
+
+DONE - Evaluate application-level lvalue expressions exactly once (to avoid duplicated side effects)
+
+- lvalue expression evaluation order that respects C/C++ sequencing rules
+
+- Consider scenarios where some cardinalities are non-affine
+
+DONE - Should the write update be qualified by the diff variable? As in, what is many statement candidates return _dx = 0 (x=0,1,..)
+-- should be fine. all these statements will be equivalent. See point about redundant execution in the input program.
+
+MAYBE DONE - Are multi-statement checks handled correctly?
+
+- Some support to handle redundancy in input program?
+
+- Special handling of copy operations in target program. 
+
+- Can the source program have copy operations? How is it handled?
+
+- Any support for associativity?
+
+- Selective elimination of loop variables from polyhedra
+
+------------------- old--------------------------
+
 clang is used by pet to generate isl info 
 
 ROSE: polyopt - extract scop and give isl info
